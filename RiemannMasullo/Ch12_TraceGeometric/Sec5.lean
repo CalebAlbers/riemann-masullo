@@ -89,13 +89,133 @@ theorem traceFormula_exteriorZeros (τ : ℝ≥0ˣ →ₜ* C𝔽) (_hτ : RightI
     (φ : BruhatCompactSupport C𝔽) (_hφ : ∀ g : C₁, φ.val g = 0) {α : ℝ} (_hα : 0 < α) :
     HasSum (fun z : exteriorZeros(τ, α) ↦ zeroTerm(φ, z)) 0 := by sorry
 
+private theorem traceFormula_of_exteriorZeros_mul_congr {a b c d : ℂ} (h1 : a = b)
+    (h2 : c = d) : a * c = b * d := by
+  rw [h1, h2]
+
+private theorem traceFormula_of_exteriorZeros_vol :
+    (((normOneIdeleClassTamagawaMeasure F) univ).toReal : ℂ) ≠ 0 := by
+  have hvol := normOneIdeleClassTamagawaMeasure_volume (F := F)
+  have hc0 : normOneIdeleClassTamagawaMeasure F univ ≠ 0 := by
+    rw [hvol, ne_eq, ENNReal.ofReal_eq_zero, not_le]
+    have := NumberField.Units.regulator_pos F
+    have := NumberField.classNumber_pos F
+    have := NumberField.Units.torsionOrder_pos F
+    have : (0 : ℝ) < Real.sqrt (Int.natAbs (NumberField.discr F) : ℝ) :=
+      Real.sqrt_pos.mpr (by exact_mod_cast Int.natAbs_pos.mpr (NumberField.discr_ne_zero F))
+    positivity
+  have hct : normOneIdeleClassTamagawaMeasure F univ ≠ ⊤ := by
+    rw [hvol]; exact ENNReal.ofReal_ne_top
+  exact Complex.ofReal_ne_zero.mpr (ENNReal.toReal_ne_zero.mpr ⟨hc0, hct⟩)
+
+private theorem traceFormula_of_exteriorZeros_cpow (p a x s : ℂ) (hx : x ≠ 0) :
+    p * (a * x ^ s) * x ^ (-1 / 2 : ℂ) = p * (a * x ^ (s - 1 / 2)) := by
+  rw [sub_eq_add_neg, Complex.cpow_add _ _ hx]
+  ring_nf
+
+private theorem traceFormula_of_exteriorZeros_split {X : Type*} (G : X → ℂ) (Z E I : Set X)
+    {T T' : ℂ}
+    (hEZ : E ⊆ Z) (hI : ∀ p, p ∈ I ↔ p ∈ Z ∧ p ∉ E) (hT : T = T')
+    (hZ : HasSum (fun z : Z ↦ G z) T) (hE : HasSum (fun z : E ↦ G z) 0) :
+    HasSum (fun z : I ↦ G z) T' := by
+  replace hZ := (hasSum_subtype_iff_indicator (f := G) (s := Z)).mp hZ
+  replace hE := (hasSum_subtype_iff_indicator (f := G) (s := E)).mp hE
+  refine (hasSum_subtype_iff_indicator (f := G) (s := I)).mpr ?_
+  have h : I.indicator G = Z.indicator G - E.indicator G := by
+    funext p
+    by_cases hp : p ∈ E
+    · simp [Set.indicator_of_mem hp, Set.indicator_of_mem (hEZ hp),
+        Set.indicator_of_notMem (fun h ↦ ((hI p).mp h).2 hp)]
+    · by_cases hz : p ∈ Z
+      · simp [Set.indicator_of_mem ((hI p).mpr ⟨hz, hp⟩), Set.indicator_of_mem hz,
+          Set.indicator_of_notMem hp]
+      · simp [Set.indicator_of_notMem hz, Set.indicator_of_notMem hp,
+          Set.indicator_of_notMem (fun h ↦ hz ((hI p).mp h).1)]
+  rw [h, ← hT, ← sub_zero T]
+  exact hZ.sub hE
+
+private theorem traceFormula_of_exteriorZeros_hasSum_congr {ι : Type*} {f g : ι → ℂ} {a : ℂ}
+    (h : HasSum f a) (hfg : ∀ i, f i = g i) : HasSum g a :=
+  (funext hfg) ▸ h
+
+private theorem traceFormula_of_exteriorZeros_val {v x p A Fs P1 P2 M1 M2 A' F' : ℂ}
+    (hv : v ≠ 0) (hx : x = p - A - Fs) (hp : p = (P1 + P2) / v) (hA : A = A') (hF : Fs = F')
+    (h1 : M1 = P2) (h2 : M2 = P1) :
+    v * x = M1 + M2 - v * (A' + F') := by
+  subst hx hp hA hF h1 h2
+  field_simp
+  ring
+
+private theorem traceFormula_of_exteriorZeros_one (p a x : ℂ) (ha : a = 1) :
+    p * (a * x) = p * x := by
+  rw [ha, one_mul]
+
+private theorem traceFormula_of_exteriorZeros_mul_div (v m I : ℂ) (hv : v ≠ 0) :
+    v * (m / v * I) = m * I := by
+  field_simp
+
 /-- Paper: Theorem B.4.4.7, p. 623, applied to Theorem 12.5.1.1, pp. 519–520.
 Evaluating the full explicit formula at a test and removing a zero subseries of
 sum zero gives the strip identity. -/
 theorem traceFormula_of_exteriorZeros (τ : ℝ≥0ˣ →ₜ* C𝔽) (_hτ : RightInverse τ (ideleClassNorm F))
     (φ : BruhatCompactSupport C𝔽) (α : ℝ)
     (_hTail : HasSum (fun z : exteriorZeros(τ, α) ↦ zeroTerm(φ, z)) 0) :
-    traceIdentity(τ, φ, α) := by sorry
+    traceIdentity(τ, φ, α) := by
+  have h := idelicExplicitFormula τ _hτ
+  obtain ⟨spectral, poles, arch, finite, hspec, hpoles, harch, hfin, _, hsupp, hsum, hHas⟩ := h
+  choose a ha haPV using fun w ↦ harch w φ
+  choose b hb hbPV using fun v ↦ hfin v φ
+  let E : StrongDual ℂ (BruhatCompactSupport C𝔽) →+ ℂ :=
+    { toFun := fun L ↦ L φ, map_zero' := rfl, map_add' := fun _ _ ↦ rfl }
+  have hEc : Continuous E := continuous_eval_const φ
+  have hT := hsum.hasSum.map E hEc
+  have hS := hHas.map E hEc
+  refine ⟨a, b, ha, hb, ?_, ?_⟩
+  · refine (summable_of_ne_finset_zero (s := (hsupp φ).toFinset) fun v hv ↦ ?_).congr
+      fun v ↦ hbPV v
+    by_contra hne
+    exact hv ((hsupp φ).mem_toFinset.mpr hne)
+  have hvol : (classVolume : ℂ) ≠ 0 := traceFormula_of_exteriorZeros_vol
+  have hM (c : QuasiCharacter C𝔽) : M(φ, c) = ∫ g, φ.val g * c g ∂μ𝔽 := by
+    unfold modulatedFourierMellin
+    rw [Set.indicator_of_mem (by simp [relativeVerticalStrip])]
+  let X := {χ : PontryaginDual C𝔽 // ∀ t : ℝ≥0ˣ, χ (τ t) = 1} × ℂ
+  let G : X → ℂ := fun p ↦
+    ((ord(p.1.val, p.2) : ℤ) : ℂ) * M(φ, twist(p.1.val, p.2 - 1 / 2))
+  let Z : Set X :=
+    {p | 0 < MeromorphicOn.divisor (explicitFormulaCompletedHeckeL p.1.val) univ p.2}
+  let Ext : Set X := {p | 0 < ord(p.1.val, p.2) ∧ α ≤ |p.2.re - 1 / 2|}
+  let Int : Set X := {p | 0 < ord(p.1.val, p.2) ∧ |p.2.re - 1 / 2| < α}
+  have hfun (z : Z) : (classVolume : ℂ) * E (spectral z) = G z.val := by
+    change (classVolume : ℂ) * spectral z φ = _
+    rw [hspec z φ]
+    refine (traceFormula_of_exteriorZeros_mul_div _ _ _ hvol).trans
+      (traceFormula_of_exteriorZeros_mul_congr rfl ((integral_congr_ae
+        (Filter.Eventually.of_forall fun g ↦ ?_)).trans (hM _).symm))
+    have hn : ((((ideleClassNorm F g : ℝ≥0) : ℝ)) : ℂ) ≠ 0 :=
+      Complex.ofReal_ne_zero.mpr (NNReal.coe_pos.mpr (Units.zero_lt _)).ne'
+    change φ.val g * (_ * ((((ideleClassNorm F g : ℝ≥0) : ℝ)) : ℂ) ^ z.val.2) *
+        ((((ideleClassNorm F g : ℝ≥0) : ℝ)) : ℂ) ^ (-1 / 2 : ℂ) =
+      φ.val g * (_ * ((((ideleClassNorm F g : ℝ≥0) : ℝ)) : ℂ) ^ (z.val.2 - 1 / 2))
+    exact traceFormula_of_exteriorZeros_cpow _ _ _ _ hn
+  have hZ : HasSum (fun z : Z ↦ G z.val) ((classVolume : ℂ) *
+      E (poles - (∑ w, arch w) - (∑' v, finite v))) :=
+    traceFormula_of_exteriorZeros_hasSum_congr (hS.mul_left (classVolume : ℂ)) hfun
+  refine traceFormula_of_exteriorZeros_split G Z Ext Int (fun p hp ↦ hp.1)
+    (fun p ↦ ⟨fun h ↦ ⟨h.1, fun h' ↦ (not_le.mpr h.2) h'.2⟩,
+      fun h ↦ ⟨h.1, lt_of_not_ge fun h' ↦ h.2 ⟨h.1, h'⟩⟩⟩) ?_ hZ _hTail
+  have hone (r : ℂ) : M(φ, twist(1, r)) = ∫ g, φ.val g *
+      ((((ideleClassNorm F g : ℝ≥0) : ℝ)) : ℂ) ^ r ∂μ𝔽 := by
+    refine (hM _).trans (integral_congr_ae (Filter.Eventually.of_forall fun g ↦ ?_))
+    change φ.val g * (_ * ((((ideleClassNorm F g : ℝ≥0) : ℝ)) : ℂ) ^ r) =
+      φ.val g * ((((ideleClassNorm F g : ℝ≥0) : ℝ)) : ℂ) ^ r
+    exact traceFormula_of_exteriorZeros_one _ _ _ rfl
+  have hx : E (poles - (∑ w, arch w) - (∑' v, finite v)) =
+      E poles - E (∑ w, arch w) - E (∑' v, finite v) :=
+    (map_sub E _ _).trans (congrArg (· - E _) (map_sub E _ _))
+  refine traceFormula_of_exteriorZeros_val hvol hx (hpoles φ) ?_ ?_ (hone _) (hone _)
+  · exact (map_sum E arch Finset.univ).trans (Finset.sum_congr rfl fun w _ ↦ haPV w)
+  · exact hT.tsum_eq.symm.trans (tsum_congr fun v ↦ hbPV v)
 
 /-- Paper: Theorem 12.5.1.1, pp. 519–520. For compactly supported Bruhat tests
 vanishing on the norm-one classes, the pole terms minus the interior zero sum
