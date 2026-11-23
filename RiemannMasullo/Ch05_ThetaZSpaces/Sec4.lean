@@ -4,6 +4,8 @@ public import RiemannMasullo.Ch05_ThetaZSpaces.Sec3b
 public import Mathlib.Algebra.Exact.Basic
 public import Mathlib.MeasureTheory.Function.L2Space
 import RiemannMasullo.ForMathlib.Analysis.SpecialFunctions.Pow.Complex
+import all RiemannMasullo.Ch02_AdelicTheta.Sec3
+import all RiemannMasullo.Ch03_IdelicZeta.Sec3
 import all RiemannMasullo.Ch05_ThetaZSpaces.Sec1
 
 /-! # Second Structure Theorem and the S-local Čech sequence
@@ -374,10 +376,79 @@ theorem mem_sLocalZetaMatching (χ : PontryaginDual Jₛ) (p : B⁺ × B⁻) :
     (fun p : B⁺ × B⁻ ↦ p.1.val) (fun p s ↦ ρₛ(χ, s) * p.2.val s) h p
   exact key
 
+/-- A unitary norm chart covers every quasi-character with the same norm-one restriction. -/
+private theorem sLocalZetaPair_isClosedEmbedding_chart (χ : PontryaginDual Jₛ)
+    (d : QuasiCharacter Jₛ)
+    (hd : ∀ u : J₁, normOneRestriction mₛ d u = (restrict₁(χ) u : ℂ)) :
+    ∃ z : ℂ, normChart(χ) z = d := by
+  obtain ⟨σ, hσ⟩ := sIdeleQuotientNorm_exists_section F S
+  let η : QuasiCharacter Jₛ := (⟨Circle.coeHom, continuous_subtype_val⟩ : Circle →ₜ* ℂ).comp χ
+  obtain ⟨a, ha, -⟩ := existsUnique_complexPower (d.comp σ)
+  obtain ⟨b, hb, -⟩ := existsUnique_complexPower (η.comp σ)
+  refine ⟨a - b, ContinuousMonoidHom.ext fun g ↦ ?_⟩
+  let t := mₛ g
+  let k : J₁ := ⟨g / σ t, MonoidHom.mem_ker.mpr (by
+    rw [map_div, hσ]
+    exact div_self' _)⟩
+  have hg : k.val * σ t = g := div_mul_cancel _ _
+  have hk : d k.val = η k.val := hd k
+  have hη : η g = η k.val * (normℝ(t) : ℂ) ^ b :=
+    ((congrArg η hg.symm).trans (map_mul η _ _)).trans (congrArg (η k.val * ·) (hb t))
+  have hD : d g = d k.val * (normℝ(t) : ℂ) ^ a :=
+    ((congrArg d hg.symm).trans (map_mul d _ _)).trans (congrArg (d k.val * ·) (ha t))
+  have hn : (normℝ(t) : ℂ) ≠ 0 :=
+    Complex.ofReal_ne_zero.mpr (NNReal.coe_ne_zero.mpr t.ne_zero)
+  change η g * (normℝ(t) : ℂ) ^ (a - b) = d g
+  rw [hη, hD, hk, mul_assoc, ← Complex.cpow_add _ _ hn]
+  congr 2
+  ring
+
+/-- Vanishing of the right zeta restriction already forces the homogeneous theta test to
+lie in its kernel, by meromorphic continuation throughout its norm-twist component. -/
+private theorem sLocalZetaPair_isClosedEmbedding_ker (χ : PontryaginDual Jₛ) (f : ℬₛ)
+    (hf : ∀ s ∈ rightHalf, Zₛ f (normChart(χ) s) = 0) :
+    f ∈ LinearMap.ker (φω(restrict₁(χ))) := by
+  have hz : (fun z ↦ Zₛ f (normChart(χ) z)) = 0 :=
+    eq_of_agree_rightHalf (sLocalIdelicZFunction_meromorphic f χ)
+      (fun _ _ ↦ analyticAt_const.meromorphicNFAt) 0 hf
+  apply (mem_sLocalHomogeneousAdelicTheta_ker_iff (restrict₁(χ)) f).mpr
+  intro d hd
+  obtain ⟨z, hz'⟩ := sLocalZetaPair_isClosedEmbedding_chart χ d.val hd
+  exact (sLocalIdelicMellin_apply f d).trans
+    ((congrArg (Zₛ f) hz').symm.trans (congrFun hz z))
+
+/-- The two half-plane seminorm topologies, pulled back along the zeta pair, recover the
+quotient topology of the homogeneous theta space. -/
+private theorem sLocalZetaPair_isClosedEmbedding_inducing (χ : PontryaginDual Jₛ) :
+    IsInducing (sLocalZetaPair (F := F) (S := S) χ) := by sorry
+
 /-- Paper: Theorem 5.4.1.1(1), p. 266.
 The zeta pair is a topological embedding with closed range. -/
 theorem sLocalZetaPair_isClosedEmbedding (χ : PontryaginDual Jₛ) :
-    IsClosedEmbedding (sLocalZetaPair (F := F) (S := S) χ) := by sorry
+    IsClosedEmbedding (sLocalZetaPair (F := F) (S := S) χ) := by
+  let U := sLocalZetaPair (F := F) (S := S) χ
+  have hU : Injective U := by
+    apply (injective_iff_map_eq_zero U).mpr
+    intro x hx
+    induction x using Submodule.Quotient.induction_on with
+    | H f =>
+      apply (Submodule.Quotient.mk_eq_zero _).mpr
+      apply sLocalZetaPair_isClosedEmbedding_ker χ f
+      intro s hs
+      exact ((sLocalZetaPair_mk χ f).1 hs).symm.trans
+        (congrArg (fun p : B⁺ × B⁻ ↦ p.1.val s) hx)
+  let : UniformSpace Θω(restrict₁(χ)) :=
+    IsTopologicalAddGroup.rightUniformSpace _
+  have : IsUniformAddGroup Θω(restrict₁(χ)) := isUniformAddGroup_of_addCommGroup
+  have : CompleteSpace Θω(restrict₁(χ)) := sLocalHomogeneousThetaSpace_complete (restrict₁(χ))
+  let : MetrizableSpace B⁺ := (schwartzBergman_frechet rightInterval isOpen_Ioi
+    ordConnected_Ioi ⟨1, by norm_num⟩).2.2.1
+  let : MetrizableSpace B⁻ := (schwartzBergman_frechet leftInterval isOpen_Iio
+    ordConnected_Iio ⟨0, by norm_num⟩).2.2.1
+  have hInd : IsUniformInducing U :=
+    AddMonoidHom.isUniformInducing_of_isInducing (f := U.toAddMonoidHom)
+      (sLocalZetaPair_isClosedEmbedding_inducing χ)
+  exact (show IsUniformEmbedding U from ⟨hInd, hU⟩).isClosedEmbedding
 
 /-- Paper: Theorem 5.4.1.1(1), p. 266.
 Every matching pair, and only a matching pair, comes from a homogeneous theta class. -/
@@ -754,13 +825,290 @@ local notation "L²ₛ" => MeasureTheory.Lp ℂ 2 μweighted
 local notation "Ẽ(" I ")" => ModulatedExponentialDecay (⟨mₛ, hmₛ⟩ : Jₛ →ₜ* ℝ≥0ˣ) I
 local notation "reflect(" I ")" => ((fun a : ℝ ↦ 1 - a) ⁻¹' I)
 
+/-- The norm-product measure integrates an exponentially decaying function of the log norm. -/
+private theorem existsUnique_sLocalThetaWeightedL2_integrable :
+    Integrable (fun g : Jₛ ↦ Real.exp (-|Real.log (normℝ(mₛ g))| / 2)) μₛ := by
+  let Q (t : ℝ≥0ˣ) := Real.exp (-|Real.log (normℝ(t))| / 2)
+  have hQ : Continuous Q := by
+    unfold Q
+    exact Real.continuous_exp.comp <|
+      (((NNReal.continuous_coe.comp Units.continuous_val).log fun t ↦
+        (NNReal.coe_pos.mpr t.zero_lt).ne').abs.neg.div_const 2)
+  have hpos : IntegrableOn (fun x : ℝ ↦ Real.exp (-|x| / 2)) (Ioi 0) := by
+    refine (integrableOn_exp_mul_Ioi (a := -(1/2)) (by norm_num) 0).congr_fun
+      (fun x hx ↦ congrArg Real.exp ?_) measurableSet_Ioi
+    rw [abs_of_pos (show 0 < x from hx)]
+    ring
+  have hneg : IntegrableOn (fun x : ℝ ↦ Real.exp (-|x| / 2)) (Iic 0) := by
+    refine (integrableOn_exp_mul_Iic (a := 1/2) (by norm_num) 0).congr_fun
+      (fun x hx ↦ congrArg Real.exp ?_) measurableSet_Iic
+    rw [abs_of_nonpos (show x ≤ 0 from hx)]
+    ring
+  have hReal : Integrable (fun x : ℝ ↦ Real.exp (-|x| / 2)) := by
+    rw [← integrableOn_univ, ← Ioi_union_Iic]
+    exact hpos.union hneg
+  let : BorelSpace ℝ≥0ˣ := borelSpace_units_of_continuousInv₀ ℝ≥0
+  let e : ℝ ≃ₜ ℝ≥0ˣ := Real.expOrderIso.toHomeomorph.trans (Nonneg.unitsHomeomorphPos ℝ).symm
+  have he (x : ℝ) : e x = Units.mk0 (Real.exp x).toNNReal (by positivity) := by
+    apply Units.ext
+    apply NNReal.eq
+    exact (Real.coe_toNNReal _ (Real.exp_pos x).le).symm
+  have hHaar : positiveRealHaar = Measure.map e volume := by
+    unfold positiveRealHaar
+    rw [funext he]
+  have hQint : Integrable Q positiveRealHaar := by
+    rw [hHaar, integrable_map_measure hQ.aestronglyMeasurable e.continuous.measurable.aemeasurable]
+    refine hReal.congr (ae_of_all _ fun x ↦ ?_)
+    have hx : normℝ(e x) = Real.exp x :=
+      (congrArg (fun t : ℝ≥0ˣ ↦ normℝ(t)) (he x)).trans
+        (Real.coe_toNNReal _ (Real.exp_pos x).le)
+    change _ = Real.exp (-|Real.log (normℝ(e x))| / 2)
+    rw [hx, Real.log_exp]
+  let : SigmaFinite positiveRealHaar := by
+    rw [hHaar]
+    exact e.toMeasurableEquiv.sigmaFinite_map
+  let p := Units.map (adeleProjection F S).toMonoidHom
+  have hp : Continuous p := (continuous_fst.prodMk (continuous_pi fun v : S ↦
+    (RestrictedProduct.continuous_eval v.val).comp continuous_snd)).units_map _
+  let τ : ℝ≥0ˣ →ₜ* Aₛˣ := ⟨p.comp (canonicalIdeleNormSection F),
+    hp.comp (canonicalIdeleNormSection_continuous F)⟩
+  have hτ : RightInverse τ (sIdeleNorm F S) := thetaSection_rightInverse F S
+  let μ₁ := sLocalNormOneQuotientMeasure F S
+  let : MeasurableSpace J₁ := borel _
+  let : BorelSpace J₁ := ⟨rfl⟩
+  let : BorelSpace Jₛ := ⟨rfl⟩
+  let (v : S) : ProperSpace (v.val.adicCompletion F) := properSpace_adicCompletion v.val
+  let (w : InfinitePlace F) : SecondCountableTopology w.Completion :=
+    (InfinitePlace.Completion.isometry_extensionEmbedding w).isEmbedding.secondCountableTopology
+  let : SecondCountableTopology Aₛ := inferInstanceAs (SecondCountableTopology
+    (((w : InfinitePlace F) → w.Completion) × ((v : S) → v.val.adicCompletion F)))
+  let : SecondCountableTopology Aₛˣ := (sIdeleGroup_description F S).1.secondCountableTopology
+  let : SecondCountableTopology Jₛ := inferInstance
+  let : CompactSpace J₁ := isCompact_iff_compactSpace.mp
+    ((isProperMap_sIdeleQuotientNorm F S).isCompact_preimage isCompact_singleton)
+  have hprod := sLocalNormOneQuotientMeasure_normProduct (F := F) (S := S)
+  let : μ₁.IsHaarMeasure := hprod.1
+  let : IsFiniteMeasure μ₁ := ⟨isCompact_univ.measure_lt_top⟩
+  let a (z : J₁ × ℝ≥0ˣ) : Jₛ := z.1.val * QuotientGroup.mk (τ z.2)
+  have ha : Measurable a :=
+    (continuous_subtype_val.measurable.comp measurable_fst).mul
+      ((QuotientGroup.continuous_mk.comp τ.continuous).measurable.comp measurable_snd)
+  have hQnorm : Continuous (Q ∘ mₛ) := hQ.comp hmₛ
+  change Integrable (Q ∘ mₛ) μₛ
+  rw [← hprod.2 τ hτ, integrable_map_measure hQnorm.aestronglyMeasurable ha.aemeasurable]
+  refine (hQint.comp_snd μ₁).congr (ae_of_all _ fun z ↦ ?_)
+  change Q z.2 = Q (mₛ (z.1.val * QuotientGroup.mk (τ z.2)))
+  rw [map_mul, z.1.property, one_mul]
+  exact congrArg Q (hτ z.2).symm
+
+/-- Bounded families of S-adelic tests share an integrable majorant for their weighted squares. -/
+private theorem existsUnique_sLocalThetaWeightedL2_majorant (B : Set ℬₛ)
+    (hB : Bornology.IsVonNBounded ℂ B) :
+    ∃ C : ℝ, 0 ≤ C ∧ ∀ f ∈ B, ∀ g : Jₛ,
+      ‖sLocalAdelicThetaOnClasses F S f g‖ ^ 2 * normℝ(mₛ g) ≤
+        C ^ 2 * Real.exp (-|Real.log (normℝ(mₛ g))| / 2) := by
+  obtain ⟨C₁, hC₁, hlarge⟩ := sLocalAdelicTheta_decay_bounded_of_one_le F S B hB 1
+  obtain ⟨C₂, hC₂, hsmall⟩ :=
+    sLocalAdelicTheta_norm_pow_bounded_threshold_one F S (1/4) (by norm_num) B hB
+  let C := max C₁ C₂
+  have hC : 0 ≤ C := hC₁.le.trans (le_max_left _ _)
+  refine ⟨C, hC, fun f hf g ↦ ?_⟩
+  obtain ⟨u, rfl⟩ := QuotientGroup.mk_surjective g
+  rw [sLocalAdelicThetaOnClasses_mk]
+  let r := normℝ(sIdeleNorm F S u)
+  have hr : 0 < r := NNReal.coe_pos.mpr (sIdeleNorm F S u).zero_lt
+  change _ * r ≤ C ^ 2 * Real.exp (-|Real.log r| / 2)
+  rcases lt_or_ge r 1 with hs | hs
+  · have hb := hsmall f hf u hs
+    change ‖(r ^ (1/4 : ℝ)) • sLocalAdelicTheta F S f u‖ ≤ C₂ at hb
+    rw [norm_smul, Real.norm_of_nonneg (Real.rpow_nonneg hr.le _)] at hb
+    have he : r ^ (-(1/4 : ℝ)) * r ^ (1/4 : ℝ) = 1 := by
+      rw [← Real.rpow_add hr, neg_add_cancel, Real.rpow_zero]
+    have hb' : ‖sLocalAdelicTheta F S f u‖ ≤ C * r ^ (-(1/4 : ℝ)) := by
+      have H := mul_le_mul_of_nonneg_left (hb.trans (le_max_right C₁ C₂))
+        (Real.rpow_nonneg hr.le (-(1/4 : ℝ)))
+      rw [← mul_assoc, he, one_mul, mul_comm] at H
+      exact H
+    calc
+      _ ≤ (C * r ^ (-(1/4 : ℝ))) ^ 2 * r := by gcongr
+      _ = C ^ 2 * Real.exp (-|Real.log r| / 2) := by
+        rw [mul_pow, mul_assoc, abs_of_nonpos (Real.log_nonpos hr.le hs.le)]
+        congr 1
+        calc
+          _ = Real.exp (Real.log r * (-(1/4 : ℝ)) + Real.log r * (-(1/4 : ℝ))) *
+              Real.exp (Real.log r) := by
+            rw [Real.exp_add, Real.exp_log hr, Real.rpow_def_of_pos hr, pow_two]
+          _ = _ := by rw [← Real.exp_add]; congr 1; ring
+  · have hb : ‖sLocalAdelicTheta F S f u‖ ≤ C * r⁻¹ :=
+      (show ‖sLocalAdelicTheta F S f u‖ ≤ C₁ * r⁻¹ by simpa only [pow_one] using hlarge f hf u hs).trans
+        (mul_le_mul_of_nonneg_right (le_max_left _ _) (inv_nonneg.mpr hr.le))
+    calc
+      _ ≤ (C * r⁻¹) ^ 2 * r := by gcongr
+      _ = C ^ 2 * r⁻¹ := by field_simp
+      _ = C ^ 2 * Real.exp (-Real.log r) := by rw [Real.exp_neg, Real.exp_log hr]
+      _ ≤ C ^ 2 * Real.exp (-|Real.log r| / 2) := by
+        gcongr
+        rw [abs_of_nonneg (Real.log_nonneg hs)]
+        linarith [Real.log_nonneg hs]
+
+/-- An integrable majorant uniform on bounded families yields a bounded-set estimate in L². -/
+private theorem existsUnique_sLocalThetaWeightedL2_ofMajorant
+    {M X : Type*} [AddCommGroup M] [Module ℂ M] [TopologicalSpace M]
+    [MeasurableSpace X] (μ : Measure X) (r : X → ℝ) (hr : Measurable r)
+    (hrpos : ∀ g, 0 < r g) (H : X → ℝ) (hi : Integrable H μ)
+    (θ : M →ₗ[ℂ] (X → ℂ))
+    (hm : ∀ f, AEStronglyMeasurable (θ f) μ)
+    (hsingle : ∀ f : M, Bornology.IsVonNBounded ℂ {f})
+    (hb : ∀ B : Set M, Bornology.IsVonNBounded ℂ B → ∃ C : ℝ,
+      ∀ f ∈ B, ∀ g, ‖θ f g‖ ^ 2 * r g ≤ C ^ 2 * H g) :
+    let ν := μ.withDensity fun g ↦ ENNReal.ofReal (r g)
+    ∃ L : M →ₗ[ℂ] Lp ℂ 2 ν, (∀ f, ((L f) : X → ℂ) =ᵐ[ν] θ f) ∧
+      ∀ B : Set M, Bornology.IsVonNBounded ℂ B → ∃ q, ∀ f ∈ B, ‖L f‖ ≤ q := by
+  intro ν
+  have hrm : Measurable (fun g ↦ ENNReal.ofReal (r g)) := hr.ennreal_ofReal
+  have hμ : μ ≪ ν := withDensity_absolutelyContinuous' hrm.aemeasurable
+    (ae_of_all _ fun g ↦ (ENNReal.ofReal_pos.mpr (hrpos g)).ne')
+  have hν : ν ≪ μ := withDensity_absolutelyContinuous _ _
+  have hflt : ∀ᵐ g ∂μ, ENNReal.ofReal (r g) < ⊤ :=
+    ae_of_all _ fun _ ↦ ENNReal.ofReal_lt_top
+  have hI (f : M) : Integrable (fun g ↦ ‖θ f g‖ ^ 2 * r g) μ := by
+    obtain ⟨C, hC⟩ := hb {f} (hsingle f)
+    refine (hi.const_mul (C ^ 2)).mono' (((hm f).norm.pow 2).mul hr.aestronglyMeasurable)
+      (ae_of_all _ fun g ↦ ?_)
+    rw [Real.norm_of_nonneg (mul_nonneg (sq_nonneg _) (hrpos g).le)]
+    exact hC f rfl g
+  have hmem (f : M) : MemLp (θ f) 2 ν := by
+    refine (memLp_two_iff_integrable_sq_norm ((hm f).mono_ac hν)).2 ?_
+    refine (integrable_withDensity_iff hrm hflt).2 ((hI f).congr ?_)
+    exact ae_of_all _ fun g ↦ by simp only [ENNReal.toReal_ofReal (hrpos g).le]
+  let L : M →ₗ[ℂ] Lp ℂ 2 ν :=
+    { toFun := fun f ↦ (hmem f).toLp (θ f)
+      map_add' := fun f f' ↦ Lp.ext <| by
+        filter_upwards [(hmem (f + f')).coeFn_toLp, Lp.coeFn_add ((hmem f).toLp (θ f))
+          ((hmem f').toLp (θ f')), (hmem f).coeFn_toLp, (hmem f').coeFn_toLp] with g h₁ h₂ h₃ h₄
+        rw [h₁, h₂, map_add]
+        exact (congrArg₂ (· + ·) h₃ h₄).symm
+      map_smul' := fun c f ↦ Lp.ext <| by
+        filter_upwards [(hmem (c • f)).coeFn_toLp, Lp.coeFn_smul c ((hmem f).toLp (θ f)),
+          (hmem f).coeFn_toLp] with g h₁ h₂ h₃
+        rw [h₁, RingHom.id_apply, h₂, map_smul]
+        exact (congrArg (c • ·) h₃).symm }
+  have hL (f : M) : ((L f) : X → ℂ) =ᵐ[ν] θ f := (hmem f).coeFn_toLp
+  have hnorm (f : M) : ‖L f‖ = Real.sqrt (∫ g, ‖θ f g‖ ^ 2 * r g ∂μ) := by
+    rw [norm_eq_sqrt_re_inner (𝕜 := ℂ), L2.inner_def, ← integral_re (L2.integrable_inner _ _)]
+    simp_rw [inner_self_eq_norm_sq]
+    rw [integral_withDensity_eq_integral_toReal_smul hrm hflt]
+    refine congrArg Real.sqrt (integral_congr_ae ?_)
+    filter_upwards [hμ.ae_eq (hL f)] with g hg
+    simp only [smul_eq_mul, ENNReal.toReal_ofReal (hrpos g).le, hg, mul_comm]
+  refine ⟨L, hL, fun B hB ↦ ?_⟩
+  obtain ⟨C, hC⟩ := hb B hB
+  refine ⟨Real.sqrt (∫ g, C ^ 2 * H g ∂μ), fun f hf ↦ ?_⟩
+  rw [hnorm]
+  exact Real.sqrt_le_sqrt (integral_mono (hI f) (hi.const_mul _) (hC f hf))
+
+/-- A bounded-set estimate gives continuity on a first-countable stage. -/
+private theorem existsUnique_sLocalThetaWeightedL2_stage {E M V : Type*}
+    [AddCommGroup E] [Module ℂ E] [TopologicalSpace E] [IsTopologicalAddGroup E]
+    [ContinuousSMul ℂ E] [FirstCountableTopology E]
+    [AddCommGroup M] [Module ℂ M] [TopologicalSpace M]
+    [NormedAddCommGroup V] [NormedSpace ℂ V] (i : E →L[ℂ] M) (L : M →ₗ[ℂ] V)
+    (hbounded : ∀ B : Set M, Bornology.IsVonNBounded ℂ B → ∃ q, ∀ f ∈ B, ‖L f‖ ≤ q) :
+    Continuous (L.comp i.toLinearMap) := by
+  apply (L.comp i.toLinearMap).continuous_of_locally_bounded
+  intro B hB
+  obtain ⟨q, hq⟩ := hbounded _ (hB.image i)
+  refine (NormedSpace.isVonNBounded_iff ℂ).mpr (isBounded_iff_forall_norm_le.mpr ⟨q, ?_⟩)
+  rintro _ ⟨f, hf, rfl⟩
+  exact hq _ ⟨f, hf, rfl⟩
+
+/-- Continuity on Schwartz–Bruhat tests follows by checking the metrizable test stages. -/
+private theorem existsUnique_sLocalThetaWeightedL2_continuous {V : Type*}
+    [NormedAddCommGroup V] [NormedSpace ℂ V] (L : ℬₛ →ₗ[ℂ] V)
+    (hbounded : ∀ B : Set ℬₛ, Bornology.IsVonNBounded ℂ B → ∃ q, ∀ f ∈ B, ‖L f‖ ≤ q) :
+    Continuous L := by
+  have hG := sAdele_fourierMeasure (F := F) (S := S)
+  let : T2Space (Multiplicative Aₛ) := hG.1
+  let : LocallyCompactSpace (Multiplicative Aₛ) := hG.2.1
+  apply SchwartzBruhat.continuous_of_continuous_comp_ofStage
+  intro a e
+  let : FirstCountableTopology (SchwartzBruhatStage e) :=
+    elementarySchwartz_withSeminorms.firstCountableTopology
+  let : ContinuousSMul ℂ (SchwartzBruhatStage e) := elementarySchwartz_withSeminorms.continuousSMul
+  exact existsUnique_sLocalThetaWeightedL2_stage
+    ⟨SchwartzBruhat.ofStage a e, SchwartzBruhat.continuous_ofStage a e⟩ L hbounded
+
+/-- The theta assignment on test functions is continuous for the weighted L² norm. -/
+private theorem existsUnique_sLocalThetaWeightedL2_onTests :
+    ∃ L : ℬₛ →L[ℂ] L²ₛ, ∀ f : ℬₛ,
+      ((L f) : Jₛ → ℂ) =ᵐ[μweighted] sLocalAdelicThetaOnClasses F S f := by
+  let θ : ℬₛ →ₗ[ℂ] (Jₛ → ℂ) :=
+    { toFun := fun f ↦ sLocalAdelicThetaOnClasses F S f
+      map_add' := fun f f' ↦ funext fun g ↦ by
+        obtain ⟨u, rfl⟩ := QuotientGroup.mk_surjective g
+        simp only [Pi.add_apply, sLocalAdelicThetaOnClasses_mk, map_add, ContinuousMap.add_apply]
+      map_smul' := fun c f ↦ funext fun g ↦ by
+        obtain ⟨u, rfl⟩ := QuotientGroup.mk_surjective g
+        simp only [Pi.smul_apply, sLocalAdelicThetaOnClasses_mk, map_smul, RingHom.id_apply, ContinuousMap.smul_apply] }
+  let r (g : Jₛ) := normℝ(mₛ g)
+  let H (g : Jₛ) := Real.exp (-|Real.log (r g)| / 2)
+  have : BorelSpace Jₛ := ⟨rfl⟩
+  have hr : Continuous r := NNReal.continuous_coe.comp (Units.continuous_val.comp hmₛ)
+  have hrpos (g : Jₛ) : 0 < r g := NNReal.coe_pos.mpr (mₛ g).zero_lt
+  have hbound (B : Set ℬₛ) (hB : Bornology.IsVonNBounded ℂ B) :
+      ∃ C : ℝ, ∀ f ∈ B, ∀ g, ‖θ f g‖ ^ 2 * r g ≤ C ^ 2 * H g := by
+    obtain ⟨C, -, hC⟩ := existsUnique_sLocalThetaWeightedL2_majorant B hB
+    exact ⟨C, hC⟩
+  have hL := existsUnique_sLocalThetaWeightedL2_ofMajorant μₛ r hr.measurable hrpos H
+    existsUnique_sLocalThetaWeightedL2_integrable θ
+    (fun f ↦ (sLocalAdelicThetaOnClasses F S f).continuous.aestronglyMeasurable)
+    Bornology.isVonNBounded_singleton hbound
+  exact ⟨⟨hL.choose, existsUnique_sLocalThetaWeightedL2_continuous hL.choose hL.choose_spec.2⟩,
+    hL.choose_spec.1⟩
+
 /-- Paper: (5.4.2.1), p. 274.
 The ordinary theta quotient injects continuously into L² for the norm-weighted
 quotient Tamagawa measure. The map keeps the almost-everywhere class of the theta
 function attached to a test representative. -/
 theorem existsUnique_sLocalThetaWeightedL2 :
     ∃! j : Θₛ →L[ℂ] L²ₛ, Injective j ∧ ∀ f : ℬₛ,
-      ((j (Submodule.Quotient.mk f)) : Jₛ → ℂ) =ᵐ[μweighted] sLocalAdelicThetaOnClasses F S f := by sorry
+      ((j (Submodule.Quotient.mk f)) : Jₛ → ℂ) =ᵐ[μweighted] sLocalAdelicThetaOnClasses F S f := by
+  obtain ⟨L, hL⟩ := existsUnique_sLocalThetaWeightedL2_onTests (F := F) (S := S)
+  let K := LinearMap.ker (sLocalAdelicTheta F S)
+  have hker : K = L.ker := by
+    have : BorelSpace Jₛ := ⟨rfl⟩
+    have : (μₛ).IsHaarMeasure := (sLocalQuotientTamagawaMeasure_isWeil (F := F) (S := S)).1
+    have hnorm : Continuous (fun g : Jₛ ↦ normℝ(mₛ g)) :=
+      NNReal.continuous_coe.comp (Units.continuous_val.comp hmₛ)
+    have hμ : μₛ ≪ μweighted :=
+      withDensity_absolutelyContinuous' hnorm.measurable.ennreal_ofReal.aemeasurable
+        (ae_of_all _ fun g ↦ (ENNReal.ofReal_pos.mpr (NNReal.coe_pos.mpr (mₛ g).zero_lt)).ne')
+    ext f
+    change sLocalAdelicTheta F S f = 0 ↔ L f = 0
+    constructor
+    · intro hf
+      have hθ : (sLocalAdelicThetaOnClasses F S f : Jₛ → ℂ) = 0 := by
+        funext g
+        obtain ⟨u, rfl⟩ := QuotientGroup.mk_surjective g
+        rw [sLocalAdelicThetaOnClasses_mk, hf]
+        rfl
+      exact Lp.eq_zero_iff_ae_eq_zero.mpr ((hL f).trans (Filter.EventuallyEq.of_eq hθ))
+    · intro hf
+      have hθ := hμ.ae_eq ((hL f).symm.trans (Lp.eq_zero_iff_ae_eq_zero.mp hf))
+      have he := (Continuous.ae_eq_iff_eq μₛ
+        (sLocalAdelicThetaOnClasses F S f).continuous continuous_zero).mp hθ
+      exact ContinuousMap.ext fun u ↦ (sLocalAdelicThetaOnClasses_mk F S f u).symm.trans
+        (congrFun he (QuotientGroup.mk u))
+  let j := K.liftQL L hker.le
+  refine ⟨j, ⟨(injective_iff_map_eq_zero j).mpr ?_, hL⟩, ?_⟩
+  · intro x hx
+    obtain ⟨f, rfl⟩ := K.mkQ_surjective x
+    exact (Submodule.Quotient.mk_eq_zero K).mpr
+      (hker.symm ▸ (show f ∈ L.ker from hx))
+  · intro j' hj'
+    refine DFunLike.ext j' j fun (x : Θₛ) ↦ ?_
+    induction x using Submodule.Quotient.induction_on with
+    | H f => exact Lp.ext ((hj'.2 f).trans (hL f).symm)
 
 local notation "weightedTheta" =>
   (show Θₛ →L[ℂ] L²ₛ from (existsUnique_sLocalThetaWeightedL2 (F := F) (S := S)).exists.choose)
@@ -959,13 +1307,59 @@ theorem existsUnique_sLocalCechRadialReflection (τ : ℝ≥0ˣ →ₜ* Jₛ)
 
 local notation "upperMiddle(" χ ")" => Eω(rightInterval, restrict₁(χ)) × Eω(rightInterval, restrict₁(χ⁻¹))
 
+/-- Homogeneous theta on test functions takes values in the positive-weight decay
+isotype, continuously for its Schwartz–Bruhat topology. -/
+private theorem existsUnique_sLocalCechThetaPair_onTests (ω : PontryaginDual J₁) :
+    ∃ T : ℬₛ →L[ℂ] Eω(rightInterval, ω), ∀ f : ℬₛ,
+      (T f).val.val = ⇑(φω(ω) f) := by sorry
+
 /-- Paper: (5.4.2.6), p. 276.
 The upper left arrow pairs the two homogeneous theta functions attached to
 a test and to its S-adelic Fourier transform. -/
 theorem existsUnique_sLocalCechThetaPair (χ : PontryaginDual Jₛ) :
     ∃! U : Θω(restrict₁(χ)) →L[ℂ] upperMiddle(χ), ∀ f : ℬₛ,
       (U (Submodule.Quotient.mk f)).1.val.val = ⇑(φω(restrict₁(χ)) f) ∧
-      (U (Submodule.Quotient.mk f)).2.val.val = ⇑(φω(restrict₁(χ⁻¹)) (Fourierₛ f)) := by sorry
+      (U (Submodule.Quotient.mk f)).2.val.val = ⇑(φω(restrict₁(χ⁻¹)) (Fourierₛ f)) := by
+  have hT := existsUnique_sLocalCechThetaPair_onTests (F := F) (S := S) (restrict₁(χ))
+  have hT' := existsUnique_sLocalCechThetaPair_onTests (F := F) (S := S) (restrict₁(χ⁻¹))
+  have hP := sLocal_fourier_continuousLinear (F := F) (S := S)
+  let K := LinearMap.ker (φω(restrict₁(χ)))
+  let L : ℬₛ →L[ℂ] upperMiddle(χ) := hT.choose.prod (hT'.choose.comp hP.choose)
+  have hL (f : ℬₛ) :
+      (L f).1.val.val = ⇑(φω(restrict₁(χ)) f) ∧
+      (L f).2.val.val = ⇑(φω(restrict₁(χ⁻¹)) (Fourierₛ f)) :=
+    ⟨hT.choose_spec f, (hT'.choose_spec (hP.choose f)).trans
+      (congrArg (fun g : ℬₛ ↦ ⇑(φω(restrict₁(χ⁻¹)) g)) (hP.choose_spec f))⟩
+  have hK : K ≤ L.ker := by
+    intro f hf
+    have hf' : Fourierₛ f ∈ LinearMap.ker (φω(restrict₁(χ⁻¹))) := by
+      apply sLocalZetaPair_isClosedEmbedding_ker χ⁻¹ (Fourierₛ f)
+      intro s hs
+      have hs' : 1 - s ∈ leftHalf := by
+        change 0 < s.re at hs
+        change (1 - s).re < 1
+        simpa only [Complex.sub_re, Complex.one_re, sub_lt_self_iff] using hs
+      have hz := (sLocalZetaPair_mk χ f).2 hs'
+      rw [(Submodule.Quotient.mk_eq_zero K).mpr hf, map_zero] at hz
+      change (0 : ℂ) = Zₛ (Fourierₛ f) (normChart(χ⁻¹) (1 - (1 - s))) at hz
+      rw [sub_sub_cancel] at hz
+      exact hz.symm
+    change L f = 0
+    apply Prod.ext
+    · apply Subtype.ext
+      apply Subtype.ext
+      exact (hL f).1.trans (congrArg (fun u : C(Jₛ, ℂ) ↦ (u : Jₛ → ℂ))
+        (LinearMap.mem_ker.mp hf))
+    · apply Subtype.ext
+      apply Subtype.ext
+      exact (hL f).2.trans (congrArg (fun u : C(Jₛ, ℂ) ↦ (u : Jₛ → ℂ))
+        (LinearMap.mem_ker.mp hf'))
+  let U := K.liftQL L hK
+  refine ⟨U, hL, fun V hV ↦ DFunLike.ext V U fun (x : Θω(restrict₁(χ))) ↦ ?_⟩
+  induction x using Submodule.Quotient.induction_on with
+  | H f =>
+    exact Prod.ext (Subtype.ext (Subtype.ext ((hV f).1.trans (hL f).1.symm)))
+      (Subtype.ext (Subtype.ext ((hV f).2.trans (hL f).2.symm)))
 
 local notation "cechThetaPair(" χ ")" => (show Θω(restrict₁(χ)) →L[ℂ] upperMiddle(χ) from
   (existsUnique_sLocalCechThetaPair (F := F) (S := S) χ).exists.choose)
