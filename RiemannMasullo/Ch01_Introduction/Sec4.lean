@@ -649,7 +649,36 @@ theorem introTrace_transition_mellin_inv (S : Finset V) (χ : U𝔽)
       (isProperMap_sIdeleQuotientNorm F S).continuous c
     (fun s ↦ (outsideMass(S) * heckeEulerProductOutside S χ hχ s)⁻¹ *
       globalIdelicZFunction (sAdeleSchwartzToGlobal F S f) (ideleClassNormTwist χ s))
-      =ᶠ[𝓝[≠] (⟨1, t⟩ : ℂ)] (fun s ↦ sLocalIdelicZFunction f (twist s)) := by sorry
+      =ᶠ[𝓝[≠] (⟨1, t⟩ : ℂ)] (fun s ↦ sLocalIdelicZFunction f (twist s)) := by
+  let L := finiteL(χ)
+  let E := reciprocalPartialHeckeEulerProduct χ S
+  let z : ℂ := ⟨1, t⟩
+  have hL := (finiteHeckeL_exists_continuation χ).choose_spec
+  obtain ⟨hE, hEn⟩ := strongCoprimalityJetMatrix_det_ne_zero_euler χ S
+  have hm : MeromorphicOn (fun s ↦ E s * L s) univ :=
+    fun s hs ↦ (hE s).meromorphicAt.mul ((hL.1 hs).meromorphicAt)
+  have horder : meromorphicOrderAt (fun s ↦ E s * L s) z ≤ 0 := by
+    change meromorphicOrderAt (E * L) z ≤ 0
+    rw [meromorphicOrderAt_mul_of_ne_zero (hE z) (hEn z (by norm_num [z]))]
+    exact introTrace_finiteL_no_zeros_one_line χ t
+  have hnonzero : ∀ᶠ s in 𝓝[≠] z, E s * L s ≠ 0 :=
+    (meromorphicOrderAt_ne_top_iff_eventually_ne_zero (hm z (mem_univ z))).mp
+      (ne_top_of_le_ne_top (by simp) horder)
+  have houtside : heckeEulerProductOutside S χ hχ =ᶠ[𝓝[≠] z] (fun s ↦ E s * L s) := by
+    rw [heckeEulerProductOutside_eq_finite S χ hχ L hL.1 hL.2]
+    exact hm.toMeromorphicNFOn_eq_self_on_nhdsNE (mem_univ z)
+  have hmass : outsideMass(S) ≠ 0 := by
+    apply finprod_ne_zero
+    intro v
+    rw [finiteLocalMultiplicativeTamagawaMeasure_integerUnits, ENNReal.toReal_inv,
+      ENNReal.toReal_ofReal (Real.sqrt_nonneg _)]
+    exact Complex.ofReal_ne_zero.mpr (inv_ne_zero (Real.sqrt_pos_of_pos
+      (pow_pos (by exact_mod_cast (HeightOneSpectrum.one_lt_absNorm v.val).pos) _)).ne')
+  dsimp only
+  filter_upwards [(introTrace_transition_mellin S χ hχ f).filter_mono (nhdsNE_le_codiscrete z),
+    houtside, hnonzero] with s hEq hOut hNe
+  have hProd := mul_ne_zero hmass (hOut.symm ▸ hNe)
+  rw [hEq, mul_right_comm, inv_mul_cancel_left₀ hProd]
 
 /-- Paper: §1.4.7, p. 31. The continued product recovers the local Mellin value
 on the boundary after normalization at its removable singularities.
@@ -663,7 +692,44 @@ theorem introTrace_transition_mellin_inv_boundaryValue (S : Finset V) (χ : U�
       (isProperMap_sIdeleQuotientNorm F S).continuous c
     toMeromorphicNFOn (fun s ↦ (outsideMass(S) * heckeEulerProductOutside S χ hχ s)⁻¹ *
       globalIdelicZFunction (sAdeleSchwartzToGlobal F S f) (ideleClassNormTwist χ s)) univ ⟨1, t⟩ =
-        sLocalIdelicZFunction f (twist ⟨1, t⟩) := by sorry
+        sLocalIdelicZFunction f (twist ⟨1, t⟩) := by
+  let c := sIdeleRestriction F S ⟨ideleClassNormTwist χ 0, hχ⟩
+  let m := sIdeleQuotientNorm F S
+  let hm := (isProperMap_sIdeleQuotientNorm F S).continuous
+  let z : ℂ := ⟨1, t⟩
+  let Z (s : ℂ) := sLocalIdelicZFunction f (quasiCharacterNormTwist m hm c s)
+  let G (s : ℂ) := (outsideMass(S) * heckeEulerProductOutside S χ hχ s)⁻¹ *
+    globalIdelicZFunction (sAdeleSchwartzToGlobal F S f) (ideleClassNormTwist χ s)
+  change toMeromorphicNFOn G univ z = Z z
+  have hnorm (x : SIdeleQuotient F S) : ‖c x‖ = 1 := by
+    obtain ⟨g, rfl⟩ := QuotientGroup.mk_surjective x
+    change ‖(χ (QuotientGroup.mk (sIdeleInsertion F S g)) : ℂ) * _ ^ (0 : ℂ)‖ = 1
+    simp
+  let ψ : PontryaginDual (SIdeleQuotient F S) :=
+    { toFun := fun x ↦ ⟨c x, mem_sphere_zero_iff_norm.mpr (hnorm x)⟩
+      map_one' := Subtype.ext (map_one c)
+      map_mul' := fun x y ↦ Subtype.ext (map_mul c x y)
+      continuous_toFun := c.continuous.subtype_mk _ }
+  have hbase : c = (⟨Circle.coeHom, continuous_subtype_val⟩ : Circle →ₜ* ℂ).comp ψ :=
+    ContinuousMonoidHom.ext fun _ ↦ rfl
+  have hZ : AnalyticAt ℂ Z z := by
+    dsimp only [Z]
+    rw [hbase]
+    exact ((sLocalIdelicZetaIntegral_analyticOn f ψ).congr
+      (isOpen_Ioi.preimage Complex.continuous_re)
+      (fun s hs ↦ (sLocalIdelicZFunction_eq_integral f ⟨ψ, s, hs, rfl⟩).symm)) z
+      (by norm_num [z])
+  have hL := (finiteHeckeL_exists_continuation χ).choose_spec
+  have hOut : MeromorphicOn (heckeEulerProductOutside S χ hχ) univ := by
+    rw [heckeEulerProductOutside_eq_finite S χ hχ _ hL.1 hL.2]
+    exact (meromorphicNFOn_toMeromorphicNFOn _ _).meromorphicOn
+  have hG : MeromorphicOn G univ := fun s hs ↦
+    (analyticAt_const.meromorphicAt.mul (hOut s hs)).inv.mul
+      ((globalIdelicZFunction_meromorphic (sAdeleSchwartzToGlobal F S f) χ) hs).meromorphicAt
+  have hEq : G =ᶠ[𝓝[≠] z] Z := introTrace_transition_mellin_inv S χ hχ f t
+  rw [toMeromorphicNFOn_eq_toMeromorphicNFAt hG (mem_univ z)]
+  exact (toMeromorphicNFAt_eventuallyEq_nhds_congr hEq).eq_of_nhds.trans
+    (congrFun (toMeromorphicNFAt_eq_self.mpr hZ.meromorphicNFAt) z)
 
 -- The first and third growth inputs on p. 31 are already stated as
 -- finiteHeckeL_continuation_isBigO_rpow and finiteHeckeL_inv_isBigO_oneLine.
