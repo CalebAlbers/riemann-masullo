@@ -117,7 +117,7 @@ local instance : MeasurableSpace Aₛ :=
 
 /-- The additive S-adeles are locally compact Hausdorff, with regular Haar
 measure in their product Borel structure. -/
-private theorem sAdele_fourierMeasure :
+theorem sAdele_fourierMeasure :
     let G := Multiplicative Aₛ
     let μ : Measure G := sAdditiveTamagawaMeasure F S
     T2Space G ∧ LocallyCompactSpace G ∧ BorelSpace G ∧ μ.IsHaarMeasure ∧ μ.Regular := by
@@ -2367,7 +2367,7 @@ private theorem sLocal_functionalEquation_of_tensor (χ : PontryaginDual Jₛ) (
 
 /-- Self-duality carries the continuous Fourier map on the Pontryagin dual
 back to the S-adelic Schwartz space. -/
-private theorem sLocal_fourier_continuousLinear :
+theorem sLocal_fourier_continuousLinear :
     ∃ T : ℬ(Aₛ) →L[ℂ] ℬ(Aₛ), ∀ f, T f = sAdeleSchwartzFourier f := by
   let G := Multiplicative Aₛ
   let μ : Measure G := sAdditiveTamagawaMeasure F S

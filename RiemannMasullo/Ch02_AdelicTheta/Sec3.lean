@@ -485,7 +485,7 @@ local notation "degree" => Module.finrank ℚ F
 local notation "root" => fun t : ℝ≥0ˣ ↦ (valueℝ t) ^ (degree : ℝ)⁻¹
 
 /-- The projected canonical section has S-idelic norm equal to its input. -/
-private theorem thetaSection_rightInverse (t : ℝ≥0ˣ) : sIdeleNorm F S (τ t) = t := by
+theorem thetaSection_rightInverse (t : ℝ≥0ˣ) : sIdeleNorm F S (τ t) = t := by
   let A := integralAdelesOutside F S
   let s := canonicalIdeleNormSection F
   have hmem (u : ℝ≥0ˣ) : (s u).val ∈ A := by
@@ -906,7 +906,7 @@ private theorem sAdeleStage_arch_decay_seminorm (a : BruhatStructuralPair Gₛ)
       _ ≤ (c • q) s := by simpa only [norm_zero, zero_mul] using apply_nonneg (c • q) s
 
 /-- The uniform decay bound for a bounded set of test functions also holds at norm one. -/
-private theorem sLocalAdelicTheta_decay_bounded_of_one_le
+theorem sLocalAdelicTheta_decay_bounded_of_one_le
     (B : Set ℬₛ) (hB : IsVonNBounded ℂ B) (N : ℕ) :
     ∃ C : ℝ, 0 < C ∧ ∀ f ∈ B, ∀ g : Iₛ, 1 ≤ normℝ g →
       ‖sLocalAdelicTheta F S f g‖ ≤ C * ((normℝ g) ^ N)⁻¹ := by

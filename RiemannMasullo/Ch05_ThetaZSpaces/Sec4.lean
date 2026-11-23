@@ -4,8 +4,8 @@ public import RiemannMasullo.Ch05_ThetaZSpaces.Sec3b
 public import Mathlib.Algebra.Exact.Basic
 public import Mathlib.MeasureTheory.Function.L2Space
 import RiemannMasullo.ForMathlib.Analysis.SpecialFunctions.Pow.Complex
-import all RiemannMasullo.Ch02_AdelicTheta.Sec3
-import all RiemannMasullo.Ch03_IdelicZeta.Sec3
+import RiemannMasullo.Ch02_AdelicTheta.Sec3
+import RiemannMasullo.Ch03_IdelicZeta.Sec3
 import all RiemannMasullo.Ch05_ThetaZSpaces.Sec1
 
 /-! # Second Structure Theorem and the S-local Čech sequence
