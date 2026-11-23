@@ -2,8 +2,8 @@ module
 
 public import RiemannMasullo.Ch12_TraceGeometric.Sec4
 public import RiemannMasullo.Ch10_TraceSpectral.Sec4b
-import all RiemannMasullo.Ch10_TraceSpectral.Sec1
-import all RiemannMasullo.AppB_AnalyticNT.Sec4b
+import RiemannMasullo.Ch10_TraceSpectral.Sec1
+import RiemannMasullo.AppB_AnalyticNT.Sec4b
 import all RiemannMasullo.Ch02_AdelicTheta.Sec2b
 import all RiemannMasullo.Ch03_IdelicZeta.Sec2
 import all RiemannMasullo.Ch09_HardySobolev.Sec3
@@ -424,7 +424,7 @@ private theorem continuous_ideleClassLogNorm : Continuous (ideleClassLogNorm F) 
   exact continuous_ofAdd.comp (hc.log fun x ↦ (nnrealUnits_coe_pos _).ne')
 
 /-- A smooth compactly supported function of the logarithm of the norm is a test function. -/
-private theorem exists_normTest (g : ℝ → ℂ) (hg : ContDiff ℝ (∞) g) (hgc : HasCompactSupport g) :
+theorem exists_normTest (g : ℝ → ℂ) (hg : ContDiff ℝ (∞) g) (hgc : HasCompactSupport g) :
     ∃ φ : BruhatCompactSupport C𝔽,
       ∀ x, φ.val x = g (Real.log ((ideleClassNorm F x : ℝ≥0) : ℝ)) := by
   have hs := isBruhatSmooth_comp_realHom (ideleClassLogNorm F)
@@ -447,7 +447,7 @@ private theorem exists_normTest (g : ℝ → ℂ) (hg : ContDiff ℝ (∞) g) (h
 
 /-- A unitary character times a smooth compactly supported function of the logarithm of
 the norm is a test function. -/
-private theorem exists_characterNormTest (ψ : PontryaginDual C𝔽) (g : ℝ → ℂ) (hg : ContDiff ℝ (∞) g)
+theorem exists_characterNormTest (ψ : PontryaginDual C𝔽) (g : ℝ → ℂ) (hg : ContDiff ℝ (∞) g)
     (hgc : HasCompactSupport g) :
     ∃ φ : BruhatCompactSupport C𝔽,
       ∀ x, φ.val x = (ψ x : ℂ) * g (Real.log ((ideleClassNorm F x : ℝ≥0) : ℝ)) := by

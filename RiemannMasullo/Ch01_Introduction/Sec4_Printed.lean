@@ -2,10 +2,10 @@ module
 
 public import RiemannMasullo.Ch01_Introduction.Sec4
 import RiemannMasullo.Ch13_ZerosHecke.Targets
-import all RiemannMasullo.Ch10_TraceSpectral.Sec1
-import all RiemannMasullo.AppB_AnalyticNT.Sec4b
-import all RiemannMasullo.Ch03_IdelicZeta.Sec2
-import all RiemannMasullo.Ch12_TraceGeometric.Sec5
+import RiemannMasullo.Ch10_TraceSpectral.Sec1
+import RiemannMasullo.AppB_AnalyticNT.Sec4b
+import RiemannMasullo.Ch03_IdelicZeta.Sec2
+import RiemannMasullo.Ch12_TraceGeometric.Sec5
 import RiemannMasullo.ForMathlib.Topology.Algebra.PontryaginDual.Separation
 import RiemannMasullo.External.AlgebraicNumberTheoryLean.Chebotarev.DirichletHeckeRat
 import Mathlib.NumberTheory.NumberField.Cyclotomic.Embeddings
