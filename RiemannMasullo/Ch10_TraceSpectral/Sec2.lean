@@ -8633,6 +8633,86 @@ private theorem spectralStripJet_multiple_zero_lines_finite_on_compact
   change 1 < (meromorphicOrderAt L (A (σ, t))).untop₀.toNat at hm
   exact fun heq ↦ by rw [heq] at hm; simp at hm
 
+/-- If two norm-twist charts differ by translation, their zero multiplicities agree
+at the corresponding points. -/
+private theorem spectralZeroMultiplicity_eq_of_chart_shift
+    {ψ η : PontryaginDual C𝔽} {w : ℂ}
+    (h : ideleClassNormTwist ψ 0 = ideleClassNormTwist η w) (z : ℂ) :
+    multiplicity(ψ, z) = multiplicity(η, z + w) := by
+  have hchart (s : ℂ) : ideleClassNormTwist ψ s = ideleClassNormTwist η (s + w) := by
+    simpa only [zero_add, add_comm w s] using ideleClassNormTwist_add_of_eq h s
+  have horder (f : adelePolarSubspace F) :
+      meromorphicOrderAt (fun s ↦ globalThetaMellinIntegral f.val (ideleClassNormTwist ψ s)) z =
+        meromorphicOrderAt (fun s ↦ globalThetaMellinIntegral f.val (ideleClassNormTwist η s))
+          (z + w) := by
+    simp_rw [hchart]
+    exact meromorphicOrderAt_comp_add_const_eq_meromorphicOrderAt (f := fun s ↦
+      globalThetaMellinIntegral f.val (ideleClassNormTwist η s)) (c := w) (x := z)
+  have hleast := isLeast_globalThetaMellinIntegral_orders ψ z
+  simp_rw [horder] at hleast
+  have he := hleast.unique (isLeast_globalThetaMellinIntegral_orders η (z + w))
+  have hclip (o : WithTop ℤ) : (max 0 o).untop₀.toNat = o.untop₀.toNat := by
+    cases o with
+    | top => simp
+    | coe n => simp only [← WithTop.coe_zero, ← WithTop.coe_max, WithTop.untop₀_coe]; omega
+  exact (hclip _).symm.trans ((congrArg (fun o : WithTop ℤ ↦ o.untop₀.toNat) he).trans (hclip _))
+
+/-- Paper: Notation 10.2.1.1, p. 440, and Proposition 10.2.2.2, pp. 446–447.
+Relative to a prescribed section, each unitary lift has a unique real ordinate shift.
+The shift identifies the quasi-characters and the zero multiplicities at every height
+and real part, so differences of ordinates within this component are preserved. -/
+theorem IsSpectralBasepointChoice.existsUnique_ordinate_shift
+    {χ : PontryaginDual C₁ → PontryaginDual C𝔽} (hχ : IsSpectralBasepointChoice χ)
+    (ψ : PontryaginDual C𝔽) :
+    ∃! d : ℝ, ∀ σ t : ℝ,
+      ideleClassNormTwist ψ (shift(σ, t)) =
+        ideleClassNormTwist (χ (ψ.comp restriction)) (shift(σ, t + d)) ∧
+      multiplicity(ψ, shift(σ, t)) = multiplicity(χ (ψ.comp restriction), shift(σ, t + d)) := by
+  let ω := ψ.comp restriction
+  have hres (g : C₁) : ideleClassNormTwist ψ 0 g.val = (ω g : ℂ) := by
+    change (ψ g.val : ℂ) * _ ^ (0 : ℂ) = ψ g.val
+    simp
+  obtain ⟨w, hw, huniq⟩ := hχ.existsUnique_normTwist ω (ideleClassNormTwist ψ 0) hres
+  have hre : w.re = 0 := by
+    have he := congrArg (quasiCharacterAbscissa (ideleClassNorm F)
+      (isProperMap_ideleClassNorm F) ideleClassNorm_ne_one) hw
+    simpa only [quasiCharacterAbscissa_ideleClassNormTwist, Complex.zero_re] using he.symm
+  have hwI : (w.im : ℂ) * Complex.I = w := by simpa [hre] using Complex.re_add_im w
+  have hshift (σ t : ℝ) : shift(σ, t + w.im) = shift(σ, t) + w := by
+    calc
+      _ = shift(σ, t) + (w.im : ℂ) * Complex.I := by ring
+      _ = _ := by rw [hwI]
+  refine ⟨w.im, fun σ t ↦ ?_, fun d hd ↦ ?_⟩
+  · rw [hshift]
+    refine ⟨?_, spectralZeroMultiplicity_eq_of_chart_shift hw _⟩
+    simpa only [zero_add, add_comm w] using ideleClassNormTwist_add_of_eq hw (shift(σ, t))
+  · have he : ideleClassNormTwist ψ 0 = ideleClassNormTwist (χ ω) ((d : ℂ) * Complex.I) := by
+      simpa using (hd 0 0).1
+    have hu := congrArg Complex.im (huniq _ he)
+    simpa using hu
+
+/-- Paper: Notation 10.2.1.1, p. 440, and Proposition 10.2.2.2, pp. 446–447.
+Two unitary lifts with the same norm-one restriction have the same zero multiplicities
+after one unique vertical translation of their norm charts. -/
+theorem spectralZeroMultiplicity_existsUnique_shift_of_restriction_eq
+    (ψ η : PontryaginDual C𝔽) (hres : ψ.comp restriction = η.comp restriction) :
+    ∃! d : ℝ, ∀ σ t : ℝ,
+      ideleClassNormTwist ψ (shift(σ, t)) = ideleClassNormTwist η (shift(σ, t + d)) ∧
+      multiplicity(ψ, shift(σ, t)) = multiplicity(η, shift(σ, t + d)) := by
+  classical
+  obtain ⟨χ₀, hχ₀⟩ := exists_spectralBasepointChoice F
+  let χ := Function.update χ₀ (ψ.comp restriction) η
+  have hη : χ (ψ.comp restriction) = η := Function.update_self ..
+  have hχ : IsSpectralBasepointChoice χ := by
+    intro ω
+    by_cases hω : ω = ψ.comp restriction
+    · subst ω
+      rw [hη]
+      exact hres.symm
+    · rw [show χ ω = χ₀ ω from Function.update_of_ne hω ..]
+      exact hχ₀ ω
+  simpa only [hη] using hχ.existsUnique_ordinate_shift ψ
+
 /-- Translating a unitary norm chart to ordinate zero preserves its norm-one component and
 all completed Hecke zero multiplicities. -/
 private theorem spectralStripJet_recenter (ψ : PontryaginDual C𝔽) (t : ℝ) :
@@ -8654,28 +8734,78 @@ private theorem spectralStripJet_recenter (ψ : PontryaginDual C𝔽) (t : ℝ) 
     ext1 g
     change c g * _ ^ (0 : ℂ) = c g
     simp
-  have hchart (z : ℂ) : ideleClassNormTwist θ z = ideleClassNormTwist ψ (z + a) := by
-    simpa only [zero_add, add_comm a z] using ideleClassNormTwist_add_of_eq hθ z
-  refine ⟨θ, ?_, fun σ ↦ ?_⟩
-  · ext g : 1
-    apply Subtype.ext
-    change (ψ g.val : ℂ) * ((((ideleClassNorm F g.val).val : ℝ) : ℂ) ^ a) = ψ g.val
-    rw [show ideleClassNorm F g.val = 1 from g.property]
-    simp
-  · have horder (f : adelePolarSubspace F) :
-        meromorphicOrderAt (fun z ↦ globalThetaMellinIntegral f.val (ideleClassNormTwist θ z)) (σ : ℂ) =
-          meromorphicOrderAt (fun z ↦ globalThetaMellinIntegral f.val (ideleClassNormTwist ψ z)) ((σ : ℂ) + a) := by
-      simp_rw [hchart]
-      exact meromorphicOrderAt_comp_add_const_eq_meromorphicOrderAt (f := fun z ↦
-        globalThetaMellinIntegral f.val (ideleClassNormTwist ψ z)) (c := a) (x := (σ : ℂ))
-    have h := isLeast_globalThetaMellinIntegral_orders θ (σ : ℂ)
-    simp_rw [horder] at h
-    have he := h.unique (isLeast_globalThetaMellinIntegral_orders ψ ((σ : ℂ) + a))
-    have hclip (x : WithTop ℤ) : (max 0 x).untop₀.toNat = x.untop₀.toNat := by
-      cases x with
-      | top => simp
-      | coe n => simp only [← WithTop.coe_zero, ← WithTop.coe_max, WithTop.untop₀_coe]; omega
-    exact (hclip _).symm.trans ((congrArg (fun x : WithTop ℤ ↦ x.untop₀.toNat) he).trans (hclip _))
+  refine ⟨θ, ?_, fun σ ↦ spectralZeroMultiplicity_eq_of_chart_shift hθ (σ : ℂ)⟩
+  ext g : 1
+  apply Subtype.ext
+  change (ψ g.val : ℂ) * ((((ideleClassNorm F g.val).val : ℝ) : ℂ) ^ a) = ψ g.val
+  rw [show ideleClassNorm F g.val = 1 from g.property]
+  simp
+
+/-- Paper: Proposition 10.2.2.2, pp. 446–447. Finiteness of the multiple real zeros
+for every choice of basepoints is equivalent to a finite cover of all the multiple zeros
+in the open right half of the critical strip. There are finitely many exceptional
+norm-one characters and finitely many real parts. At any height, a multiple zero of
+any unitary Hecke character either belongs to an exceptional component or has one of
+these real parts. The same two finite sets work for every choice of basepoints.
+Reconstruction: This characterizes the real-segment part of the strip margin. -/
+theorem spectralStripJet_multiple_real_zeros_finite_iff_finite_cover :
+    (∀ (χ : PontryaginDual C₁ → PontryaginDual C𝔽), IsSpectralBasepointChoice χ →
+      {σ : ℝ | σ ∈ Ioo (1 / 2 : ℝ) 1 ∧ ∃ ω : PontryaginDual C₁,
+        1 < multiplicity(χ ω, (σ : ℂ))}.Finite) ↔
+    ∃ (E : Finset (PontryaginDual C₁)) (S : Finset ℝ), ∀ (ψ : PontryaginDual C𝔽) (σ t : ℝ),
+      σ ∈ Ioo (1 / 2 : ℝ) 1 → 1 < multiplicity(ψ, shift(σ, t)) →
+        ψ.comp restriction ∈ E ∨ σ ∈ S := by
+  classical
+  constructor
+  · intro hreal
+    by_contra! hcover
+    -- Greedily take zeros in fresh components and at fresh real parts, moving each to height zero.
+    let component (p : PontryaginDual C𝔽 × ℝ) := p.1.comp restriction
+    let P (p : PontryaginDual C𝔽 × ℝ) :=
+      p.2 ∈ Ioo (1 / 2 : ℝ) 1 ∧ 1 < multiplicity(p.1, (p.2 : ℂ))
+    let r (p q : PontryaginDual C𝔽 × ℝ) := component p ≠ component q ∧ p.2 ≠ q.2
+    have : Std.Symm r := ⟨fun _ _ h ↦ ⟨h.1.symm, h.2.symm⟩⟩
+    obtain ⟨p, hp, hpair⟩ := exists_seq_of_forall_finset_exists' P r (fun K _ ↦ by
+      obtain ⟨ψ, σ, t, hσ, hm, hψ, hs⟩ := hcover (K.image component) (K.image Prod.snd)
+      obtain ⟨θ, hθ, hmove⟩ := spectralStripJet_recenter ψ t
+      have hmθ : 1 < multiplicity(θ, (σ : ℂ)) := by rwa [hmove]
+      refine ⟨(θ, σ), ⟨hσ, hmθ⟩, fun q hq ↦ ⟨?_, ?_⟩⟩
+      · exact fun he ↦ hψ (Finset.mem_image.mpr ⟨q, hq, he.trans hθ⟩)
+      · exact fun he ↦ hs (Finset.mem_image.mpr ⟨q, hq, he⟩))
+    have hcomp : Injective (fun n ↦ component (p n)) :=
+      injective_iff_pairwise_ne.mpr fun _ _ h ↦ (hpair h).1
+    have hparts : Injective (fun n ↦ (p n).2) :=
+      injective_iff_pairwise_ne.mpr fun _ _ h ↦ (hpair h).2
+    -- The components are distinct, so the selected characters extend to one choice of basepoints.
+    obtain ⟨χ₀, hχ₀⟩ := exists_spectralBasepointChoice F
+    let χ := extend (fun n ↦ component (p n)) (fun n ↦ (p n).1) χ₀
+    have hmatch (n : ℕ) : χ (component (p n)) = (p n).1 := hcomp.extend_apply _ _ n
+    have hχ : IsSpectralBasepointChoice χ := by
+      intro ω
+      by_cases h : ∃ n, component (p n) = ω
+      · obtain ⟨n, rfl⟩ := h
+        rw [hmatch]
+      · exact (congrArg (fun ψ : PontryaginDual C𝔽 ↦ ψ.comp restriction)
+          (extend_apply' _ χ₀ ω h)).trans (hχ₀ ω)
+    apply infinite_range_of_injective hparts
+    apply (hreal χ hχ).subset
+    rintro _ ⟨n, rfl⟩
+    refine ⟨(hp n).1, component (p n), ?_⟩
+    rw [hmatch]
+    exact (hp n).2
+  · rintro ⟨E, S, hcover⟩ χ hχ
+    let Z (ω : PontryaginDual C₁) :=
+      {σ : ℝ | σ ∈ Ioo (1 / 2 : ℝ) 1 ∧ 1 < multiplicity(χ ω, (σ : ℂ))}
+    have hZ (ω : PontryaginDual C₁) : (Z ω).Finite := by
+      apply (spectralStripJet_multiple_zero_lines_finite_on_compact (χ ω) 0).subset
+      rintro σ ⟨hσ, hm⟩
+      exact ⟨⟨hσ.1.le, hσ.2.le⟩, 0, by simp, by simpa using hm⟩
+    apply (S.finite_toSet.union (E.finite_toSet.biUnion fun ω _ ↦ hZ ω)).subset
+    rintro σ ⟨hσ, ω, hm⟩
+    rcases hcover (χ ω) σ 0 hσ (by simpa using hm) with hω | hs
+    · rw [hχ ω] at hω
+      exact Or.inr (mem_iUnion₂.mpr ⟨ω, hω, hσ, hm⟩)
+    · exact Or.inl hs
 
 /-- Reflect a multiple zero into the opposite half of the strip by the completed functional
 equation. Reflection negates the ordinate and replaces the character by its inverse. -/
