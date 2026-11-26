@@ -1,18 +1,23 @@
 module
 
+public import Mathlib.Analysis.Normed.Group.InfiniteSum
 public import Mathlib.Analysis.Normed.Operator.Banach
+public import Mathlib.Topology.Algebra.InfiniteSum.Module
+public import RiemannMasullo.AppC_LCTVS.Sec3a_part2
 
 /-! # Compatibility of two Paley–Wiener packet lifts
 
 For the fixed-box lifting question in (11.3.1.3)–(11.3.1.4), p. 494, this
 isolates an obstruction to combining two packet lifts in one preceding stage.
-The hypotheses describe the bounded quotient maps and the induced difference
-operator on the second packet. Nothing imports this file.
+For summable data, the synthesis result verifies the ambient rank-one expansion
+from prescribed coordinate functionals and their cardinal lifts, as needed on
+p. 496. Nothing imports this file.
 -/
 
 public section
 
-open Function Set
+open Filter Function Set
+open scoped Topology
 
 namespace RiemannMasullo.Isolated
 
@@ -122,5 +127,75 @@ theorem packetJointLift_range_not_isClosed
   apply packetDifference_range_not_isClosed D P z μ hC hP hz hnorm hfix hmul hsmall
   rw [← heq]
   exact hclosed.preimage (continuous_const.prodMk continuous_id)
+
+/-- Paper: (11.3.1.3)–(11.3.1.4), pp. 494–496.
+Given cardinal lifts in a complete ambient space, prescribed output coordinates
+with summable rank-one costs assemble into an operator with an absolutely
+convergent rank-one expansion. Its norm is bounded by the total lift cost.
+Reconstruction: This verifies the synthesis step of the finite-rank
+approximation on p. 496 from the estimates on the individual lifts. -/
+theorem packetSynthesis_of_summable_rankOne
+    {𝕜 : Type*} [NontriviallyNormedField 𝕜] {ι E F : Type*}
+    [NormedAddCommGroup E] [NormedSpace 𝕜 E]
+    [NormedAddCommGroup F] [NormedSpace 𝕜 F] [CompleteSpace F]
+    (sample : ι → F →L[𝕜] 𝕜) (row : ι → E →L[𝕜] 𝕜) (lift : ι → F)
+    (hdiag : ∀ i, sample i (lift i) = 1)
+    (hoff : ∀ i j, j ≠ i → sample i (lift j) = 0)
+    (hcost : Summable (fun i ↦ ‖row i‖ * ‖lift i‖)) :
+    ∃ S : E →L[𝕜] F,
+      HasSum (fun i ↦ (row i).smulRight (lift i)) S ∧
+      (∀ i x, sample i (S x) = row i x) ∧
+      (∀ x, (∀ i, row i x = 0) → S x = 0) ∧
+      ‖S‖ ≤ ∑' i, ‖row i‖ * ‖lift i‖ := by
+  classical
+  let term (i : ι) := (row i).smulRight (lift i)
+  have habs : Summable (fun i ↦ ‖term i‖) := by
+    simpa only [term, ContinuousLinearMap.norm_smulRight_apply] using hcost
+  let S := ∑' i, term i
+  have hS : HasSum term S := habs.of_norm.hasSum
+  refine ⟨S, hS, ?_, ?_, ?_⟩
+  · intro i x
+    have hsum := (hS.mapL (ContinuousLinearMap.apply 𝕜 F x)).mapL (sample i)
+    refine hsum.unique ((hasSum_ite_eq i (row i x)).congr_fun fun j ↦ ?_)
+    change sample i (row j x • lift j) = if j = i then row i x else 0
+    by_cases hji : j = i
+    · subst j
+      simp [hdiag]
+    · simp [hji, hoff i j hji]
+  · intro x hx
+    have hsum := hS.mapL (ContinuousLinearMap.apply 𝕜 F x)
+    refine hsum.unique (hasSum_zero.congr_fun fun i ↦ ?_)
+    change row i x • lift i = (0 : F)
+    rw [hx, zero_smul]
+  · simpa only [S, term, ContinuousLinearMap.norm_smulRight_apply] using
+      norm_tsum_le_tsum_norm habs
+
+/-- Paper: (11.3.2.4)–(11.3.2.5), p. 496.
+On a Hilbert space, the cardinal synthesis has a trace-norm convergent expansion.
+The sum of the omitted rank-one costs bounds the trace-norm error for each truncation.
+Reconstruction: The cutoffs here retain orbital coordinates in the synthesized
+operator. The geometric cutoff comparison requires a further identification. -/
+theorem packetSynthesis_traceNorm_tendsto
+    {ι κ H : Type*}
+    [NormedAddCommGroup H] [InnerProductSpace ℂ H] [CompleteSpace H]
+    (sample row : ι → H →L[ℂ] ℂ) (lift : ι → H)
+    (hdiag : ∀ i, sample i (lift i) = 1)
+    (hoff : ∀ i j, j ≠ i → sample i (lift j) = 0)
+    (hcost : Summable (fun i ↦ ‖row i‖ * ‖lift i‖))
+    (W : κ → Set ι) (l : Filter κ) (hW : ∀ i, ∀ᶠ k in l, i ∈ W k) :
+    ∃ S : H →L[ℂ] H, (∀ i x, sample i (S x) = row i x) ∧
+      ∃ hS : IsNuclearOperator S,
+      ∃ hK : ∀ k, IsNuclearOperator (∑' i : W k, (row i.val).smulRight (lift i.val)),
+        (∀ k, traceNorm ((⟨S, hS⟩ : nuclearEndomorphisms H) - ⟨_, hK k⟩) ≤
+          ∑' i : ↥((W k)ᶜ : Set ι), ‖row i.val‖ * ‖lift i.val‖) ∧
+        Tendsto (fun k ↦ traceNorm ((⟨S, hS⟩ : nuclearEndomorphisms H) - ⟨_, hK k⟩)) l
+          (𝓝 0) := by
+  obtain ⟨S, hsum, hsample, _, _⟩ :=
+    packetSynthesis_of_summable_rankOne sample row lift hdiag hoff hcost
+  let R (i : ι) : nuclearEndomorphisms H :=
+    ⟨(row i).smulRight (lift i), smulRight_mem_nuclearEndomorphisms _ _⟩
+  refine ⟨S, hsample, ?_⟩
+  exact traceNorm_tendsto_of_hasSum_subseries R S hsum _ hcost
+    (fun i ↦ (traceNorm_smulRight (row i) (lift i)).le) W l hW
 
 end RiemannMasullo.Isolated
