@@ -62,6 +62,27 @@ theorem retainedShell_bandSeries_nuclear
   choose hn hnorm using fun i ↦ retainedShell_traceNorm_le_of_rank_le (B i) (N i) (hB i)
   exact traceNorm_le_of_hasSum (fun i ↦ ⟨B i, hn i⟩) A hs _ hcost hnorm
 
+/-- Paper: (11.3.2.4)–(11.3.2.5), p. 496.
+A spectral operator whose trace norm is below half the orbital magnitude
+gives a trace below that threshold under every contractive gate.
+Reconstruction: For the reversed line kernel the spectral operator is
+convolution after spectral projection. The retained geometric shell
+is its trace against a contractive multiplier after the sign cancellation. -/
+theorem retainedShell_trace_lt_half_orbital
+    {H : Type*} [NormedAddCommGroup H] [InnerProductSpace ℂ H] [CompleteSpace H]
+    (T : nuclearEndomorphisms H) (M : H →L[ℂ] H) (hM : ‖M‖ ≤ 1)
+    (orbital : ℂ) (hsmall : traceNorm T * 2 < ‖orbital‖) :
+    ‖hilbertTrace ⟨M * T.val, mul_mem_nuclearEndomorphisms_left M T⟩‖ < ‖orbital‖ / 2 := by
+  let : Norm (nuclearEndomorphisms H) := ⟨traceNorm⟩
+  have hnonneg : 0 ≤ traceNorm T :=
+    (traceNorm_normedSpaceCore (H := H)).norm_nonneg T
+  calc
+    _ ≤ traceNorm ⟨M * T.val, mul_mem_nuclearEndomorphisms_left M T⟩ :=
+      norm_hilbertTrace_le _
+    _ ≤ ‖M‖ * traceNorm T := traceNorm_mul_left_le M T
+    _ ≤ traceNorm T := mul_le_of_le_one_left hnonneg hM
+    _ < ‖orbital‖ / 2 := (lt_div_iff₀ zero_lt_two).2 hsmall
+
 /-- Paper: (11.3.2.1), p. 495, and (11.3.2.4)–(11.3.2.5), p. 496.
 If the orbital functional has no bounded representation through the spectral
 diagonal, one test has orbital magnitude larger than the proposed bound on all
