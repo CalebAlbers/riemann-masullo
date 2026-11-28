@@ -83,6 +83,28 @@ theorem retainedShell_trace_lt_half_orbital
     _ ≤ traceNorm T := mul_le_of_le_one_left hnonneg hM
     _ < ‖orbital‖ / 2 := (lt_div_iff₀ zero_lt_two).2 hsmall
 
+/-- Paper: (11.3.2.4)–(11.3.2.5), p. 496.
+A strict line trace bound persists under all contractive gates if the trace-norm
+change is eventually bounded by a cost smaller than the available margin.
+Reconstruction: At positive strip width the change includes extra interior
+Mellin derivatives whose evaluations do not survive at width zero. -/
+theorem retainedShell_eventually_trace_lt_half_orbital
+    {ι H : Type*} [NormedAddCommGroup H] [InnerProductSpace ℂ H] [CompleteSpace H]
+    (l : Filter ι) (T : ι → nuclearEndomorphisms H) (T₀ : nuclearEndomorphisms H)
+    (orbital : ℂ) (cost : ℝ) (hmargin : 2 * (traceNorm T₀ + cost) < ‖orbital‖)
+    (hchange : ∀ ε > 0, ∀ᶠ i in l, traceNorm (T i - T₀) ≤ cost + ε) :
+    ∀ᶠ i in l, ∀ (M : H →L[ℂ] H) (_ : ‖M‖ ≤ 1),
+      ‖hilbertTrace ⟨M * (T i).val, mul_mem_nuclearEndomorphisms_left M (T i)⟩‖ <
+        ‖orbital‖ / 2 := by
+  have hgap : 0 < ‖orbital‖ / 2 - (traceNorm T₀ + cost) := by linarith
+  filter_upwards [hchange _ (half_pos hgap)] with i hi M hM
+  apply retainedShell_trace_lt_half_orbital (T i) M hM orbital
+  let : Norm (nuclearEndomorphisms H) := ⟨traceNorm⟩
+  have htriangle : traceNorm (T i) ≤ traceNorm (T i - T₀) + traceNorm T₀ := by
+    simpa only [sub_add_cancel] using
+      (traceNorm_normedSpaceCore (H := H)).norm_triangle (T i - T₀) T₀
+  linarith
+
 /-- Paper: (11.3.2.1), p. 495, and (11.3.2.4)–(11.3.2.5), p. 496.
 If the orbital functional has no bounded representation through the spectral
 diagonal, one test has orbital magnitude larger than the proposed bound on all

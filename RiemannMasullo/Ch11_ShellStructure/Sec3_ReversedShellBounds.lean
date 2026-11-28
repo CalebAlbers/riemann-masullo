@@ -45,4 +45,14 @@ theorem retainedShell_reversed_orbital_constants :
       ((17 / 100) / 6 + (49 / 100) / 8 + (40 / 100) / 12) := by
   norm_num [Nat.factorial]
 
+/-- Paper: (11.3.2.4)–(11.3.2.5), p. 496.
+The rational upper bound for the surplus derivative contribution is inside
+the margin between the line trace norm and half the orbital value.
+Reconstruction: The first inequality bounds the zero-count majorant for the
+gamma-density prototype. The second allows for compact smoothing of that test. -/
+theorem retainedShell_positiveWidth_constants :
+    (4 : ℚ) * (16 / 65) ^ 18 * (196 + 14 ^ 3 / 21) < 1 / 10 ^ 7 ∧
+    (2 : ℚ) * (9 / 250 + 1 / 1000) < 21 / 250 := by
+  norm_num
+
 end RiemannMasullo.Isolated
