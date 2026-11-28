@@ -4,6 +4,7 @@ public import RiemannMasullo.Ch07_SchauderBasesZeta.Sec3b
 public import RiemannMasullo.Ch05_ThetaZSpaces.Sec2b_IsotypicAverages
 public import Mathlib.NumberTheory.NumberField.InfinitePlace.TotallyRealComplex
 import Mathlib.FieldTheory.Galois.Basic
+import Mathlib.FieldTheory.Normal.Closure
 import RiemannMasullo.ForMathlib.Analysis.SpecialFunctions.Pow.Complex
 import RiemannMasullo.ForMathlib.NumberTheory.NumberField.Completion.FinitePlace
 import RiemannMasullo.ForMathlib.Topology.Algebra.OpenSubgroup
@@ -15,28 +16,31 @@ import Mathlib.RingTheory.Localization.Module
 import Mathlib.RingTheory.Norm.Transitivity
 import Mathlib.Topology.MetricSpace.Ultra.TotallySeparated
 
-/-! # Repeated primary poles in cubic fields, from the Four Exponentials Conjecture
+/-! # Repeated primary poles from the Four Exponentials Conjecture
 
 Theorem 7.3.3.4, pp. 360–363, with p. 349 (issue #7336). In Lean the theorem rests on the
 open statement `sLocalPWOrbital_bases_bounded_interpolation_laurent_other_prime_shift_minima`
 of `Sec3b.lean`, which assumes that the field has degree at least three and that the
-character has a repeated primary pole. This file shows that in degree three that
-hypothesis cannot hold if the Four Exponentials Conjecture holds, so that the open
-statement is then only open in degree at least four.
+character has a repeated primary pole. This file shows that this hypothesis cannot hold, if
+the Four Exponentials Conjecture holds, in two kinds of fields: fields of degree three, and
+totally imaginary quartic fields with no proper intermediate field. For such fields the open
+statement then holds vacuously.
 
-The argument is duuren's, in the comment of 24 November 2026 on issue #7336
-(comment 7145386474, "Degree 3, the first case left after #7413").
-A repeated pole at two places above one rational prime gives an element `a` of the field
-whose valuation support is those two places, and on whose archimedean diagonal the
-character takes a root of unity; the global units have the same property. In degree three
-the norm-one archimedean ideles modulo units form a two-dimensional torus, and the
-condition becomes a singular `2 × 2` matrix of logarithms of algebraic numbers, which the
-conjecture excludes. Two subcases need no conjecture: a purely angular character of a complex cubic
-field, and a totally real character whose exponents point in a rational direction.
+The arguments are duuren's, in two comments of 24 November 2026 on issue #7336
+(comment 7145386474, "Degree 3, the first case left after #7413", and the degree-four note
+that follows it). A repeated pole at two places above one rational prime gives an element `a`
+of the field whose valuation support is those two places, and on whose archimedean diagonal
+the character takes a root of unity; the global units have the same property. In both kinds
+of field the unit rank `r` and the angular exponents make the condition a singular `2 × 2`
+matrix of logarithms of algebraic numbers, which the conjecture excludes. Two subcases in
+degree three need no conjecture: a purely angular character of a complex cubic field, and a
+totally real character whose exponents point in a rational direction. In the quartic case
+the radial exponent cannot vanish, by the Galois action on the four embeddings.
 
-The first part, which produces `a` from the pair of poles, is adapted from dyknapp's
-`Sec3b_PrimitiveQuartic_Isolated.lean` (pull request #7479), where it serves the quartic
-case.
+The part that produces `a` from the pair of poles, and the Galois action on the embeddings
+of a primitive quartic field, are adapted from dyknapp's
+`Sec3b_PrimitiveQuartic_Isolated.lean` (pull request #7479), which proves there from the Six
+Exponentials Theorem that a primitive totally imaginary quartic field has at most one pair.
 
 Nothing imports this file, and nothing outside it may build on it.
 -/
@@ -67,7 +71,7 @@ local notation "integralUnits" =>
   MonoidHom.range (Units.map (RingHom.toMonoidHom (Subring.subtype (integralAdelesOutside F ∅))))
 
 /-- A power of a norm-one idele is a principal idele times an integral unit idele. -/
-theorem cubic_principalize_ratio (g : N₁) :
+theorem fe_principalize_ratio (g : N₁) :
     ∃ n : ℕ, 0 < n ∧ ∃ a : Fˣ, ∃ u : 𝕀[F],
       u ∈ integralUnits ∧ g.val ^ n = principal a * u := by
   obtain ⟨e, _⟩ := (picard_uniformization F ∅).2.2.2
@@ -84,7 +88,7 @@ theorem cubic_principalize_ratio (g : N₁) :
   exact ⟨n, hn, a, u, hu, h.symm⟩
 
 /-- The principal generator of the power has exactly the same finite support. -/
-theorem cubic_principalize_support {g : 𝕀[F]} {n : ℕ} (hn : 0 < n)
+theorem fe_principalize_support {g : 𝕀[F]} {n : ℕ} (hn : 0 < n)
     {a : Fˣ} {u : 𝕀[F]} (hu : u ∈ integralUnits) (h : g ^ n = principal a * u)
     (v : Primes(F)) :
     (v.valuation F (a : F) = 1) ↔ Valued.v (g.val.2 v) = (1 : ℤᵐ⁰) := by
@@ -106,18 +110,18 @@ theorem cubic_principalize_support {g : 𝕀[F]} {n : ℕ} (hn : 0 < n)
 local notation "C₁" => MonoidHom.ker (ideleClassNorm F)
 
 /-- Passing a norm-one idele to its global idele class. -/
-def cubicNormOneClass : N₁ →* C₁ :=
+def feNormOneClass : N₁ →* C₁ :=
   ((QuotientGroup.mk' (IdeleGroup.principalSubgroup (𝓞 F) F)).comp
     (Subgroup.subtype N₁)).codRestrict
     _ fun g ↦ g.property
 
 /-- Giving a norm-one archimedean idele finite components equal to one. -/
-def cubicArchIdele : (infiniteIdeleNorm F).ker →* N₁ :=
+def feArchIdele : (infiniteIdeleNorm F).ker →* N₁ :=
   ((fromInfinity).comp (infiniteIdeleNorm F).ker.subtype).codRestrict _ fun a ↦
     (infiniteIdeleNorm_eq_global F a.val).symm.trans a.property
 
 /-- The archimedean projection of an integral, norm-one idele has norm one. -/
-theorem cubic_infiniteNorm_of_integral (u : 𝕀[F])
+theorem fe_infiniteNorm_of_integral (u : 𝕀[F])
     (hu : u ∈ integralUnits) (hn : ideleNorm F u = 1) :
     infiniteIdeleNorm F (atInfinity u) = 1 := by
   have hfin : (∏ᶠ v : Primes(F), ‖u.val.2 v‖) = 1 :=
@@ -132,9 +136,9 @@ theorem cubic_infiniteNorm_of_integral (u : 𝕀[F])
   rfl
 
 /-- The units supported at finite places have torsion image under any norm-one circle character. -/
-theorem cubic_finite_unit_character_exponent (ω : PontryaginDual C₁) :
+theorem fe_finite_unit_character_exponent (ω : PontryaginDual C₁) :
     ∃ n : ℕ, 0 < n ∧ ∀ (u : N₁), u.val ∈ integralUnits → atInfinity u.val = 1 →
-      ω (cubicNormOneClass F u) ^ n = 1 := by
+      ω (feNormOneClass F u) ^ n = 1 := by
   let U := (v : Primes(F)) → (v.adicCompletionIntegers F).units
   have hC (v : Primes(F)) : CompactSpace (v.adicCompletionIntegers F).units :=
     isCompact_iff_compactSpace.mp
@@ -175,7 +179,7 @@ theorem cubic_finite_unit_character_exponent (ω : PontryaginDual C₁) :
       Units.val_one, NNReal.coe_one]
   let i : U →* N₁ := raw.codRestrict _ hnorm
   have hi : Continuous i := (e.symm.continuous.comp (continuous_const.prodMk hs)).subtype_mk _
-  let q := cubicNormOneClass F
+  let q := feNormOneClass F
   have hq : Continuous q :=
     (QuotientGroup.continuous_mk.comp continuous_subtype_val).subtype_mk _
   let ψ : PontryaginDual U := ⟨ω.toMonoidHom.comp (q.comp i), ω.continuous.comp (hq.comp hi)⟩
@@ -215,12 +219,12 @@ theorem cubic_finite_unit_character_exponent (ω : PontryaginDual C₁) :
 
 /-- A norm-one character trivial on a purely finite idele has torsion value on
   the archimedean projection of a generator principalizing that idele. -/
-theorem cubic_principalize_character (ω : PontryaginDual C₁) (g : N₁)
-    (hg : ω (cubicNormOneClass F g) = 1) (harchg : atInfinity g.val = 1) :
+theorem fe_principalize_character (ω : PontryaginDual C₁) (g : N₁)
+    (hg : ω (feNormOneClass F g) = 1) (harchg : atInfinity g.val = 1) :
     ∃ a : Fˣ, ∃ b : (infiniteIdeleNorm F).ker, b.val = atInfinity (principal a) ∧
-      IsOfFinOrder (ω (cubicNormOneClass F (cubicArchIdele F b))) ∧
+      IsOfFinOrder (ω (feNormOneClass F (feArchIdele F b))) ∧
       ∀ v : Primes(F), v.valuation F (a : F) = 1 ↔ Valued.v (g.val.val.2 v) = (1 : ℤᵐ⁰) := by
-  obtain ⟨n, hn, a, u, hu, he⟩ := cubic_principalize_ratio F g
+  obtain ⟨n, hn, a, u, hu, he⟩ := fe_principalize_ratio F g
   let N := (ideleNorm F).ker
   let p : Fˣ →* N := (principal).codRestrict _ fun x ↦ (ideleNorm_spec F).2 (Set.mem_range_self x)
   have hnu : ideleNorm F u = 1 := by
@@ -230,7 +234,7 @@ theorem cubic_principalize_character (ω : PontryaginDual C₁) (g : N₁)
     exact h.symm
   let U : N := ⟨u, hnu⟩
   have hep : g ^ n = p a * U := Subtype.ext he
-  let q := cubicNormOneClass F
+  let q := feNormOneClass F
   have hqa : q (p a) = 1 := by
     apply Subtype.ext
     exact (QuotientGroup.eq_one_iff (principal a)).mpr (Set.mem_range_self a)
@@ -246,9 +250,9 @@ theorem cubic_principalize_character (ω : PontryaginDual C₁) (g : N₁)
     rw [map_pow, map_mul, harchg, one_pow] at h
     exact h.symm
   let B : (infiniteIdeleNorm F).ker :=
-    ⟨atInfinity u, cubic_infiniteNorm_of_integral F u hu hnu⟩
+    ⟨atInfinity u, fe_infiniteNorm_of_integral F u hu hnu⟩
   have hBa : (B⁻¹).val = atInfinity (principal a) := (eq_inv_of_mul_eq_one_left harch).symm
-  let ins := cubicArchIdele F
+  let ins := feArchIdele F
   let V := U / ins B
   have hUV : U = V * ins B := (div_mul_cancel U (ins B)).symm
   have hV : V.val ∈ integralUnits := by
@@ -265,7 +269,7 @@ theorem cubic_principalize_character (ω : PontryaginDual C₁) (g : N₁)
     change atInfinity (u / (ins B).val) = 1
     rw [map_div]
     exact div_self' (atInfinity u)
-  obtain ⟨m, hm, hωm⟩ := cubic_finite_unit_character_exponent F ω
+  obtain ⟨m, hm, hωm⟩ := fe_finite_unit_character_exponent F ω
   have hωB : ω (q (ins B⁻¹)) = ω (q V) := by
     have h := congrArg (fun x : N ↦ ω (q x)) hUV
     change (ω.toMonoidHom.comp q) U = (ω.toMonoidHom.comp q) (V * ins B) at h
@@ -274,14 +278,14 @@ theorem cubic_principalize_character (ω : PontryaginDual C₁) (g : N₁)
     rw [hωu] at h
     rw [map_inv, map_inv, map_inv, eq_inv_of_mul_eq_one_left h.symm]
   refine ⟨a, B⁻¹, hBa, isOfFinOrder_iff_pow_eq_one.mpr ⟨m, hm, ?_⟩,
-    cubic_principalize_support F hn hu he⟩
+    fe_principalize_support F hn hu he⟩
   rw [hωB]
   exact hωm V hV hVarch
 
 variable {S : Finset (Primes(F))}
 
 /-- At a finite pole the local character is one on the chosen uniformizer. -/
-private theorem cubic_pole_uniformizer
+private theorem fe_pole_uniformizer
     (c : QuasiCharacter (SIdeleQuotient F S)) (w : S) (hw : w ∈ sLocalFinitePolePlaces c) :
     ∃ u : (w.val.adicCompletion F)ˣ,
       ‖u.val‖ = (w.val.asIdeal.absNorm : ℝ)⁻¹ ∧ sLocalFiniteRestriction w c u = 1 := by
@@ -306,7 +310,7 @@ private theorem cubic_pole_uniformizer
 
 /-- Two distinct finite poles over one rational prime give a character-trivial norm-one
 idele with exactly those two places in its valuation support. -/
-theorem cubic_pole_ratio (ω : PontryaginDual C₁)
+theorem fe_pole_ratio (ω : PontryaginDual C₁)
     (hω : NormOneCharacterUnramifiedOutside ω S) (p : HeightOneSpectrum (𝓞 ℚ))
     (c : QuasiCharacter (SIdeleQuotient F S))
     (hc : ∀ x : (sIdeleQuotientNorm F S).ker,
@@ -314,7 +318,7 @@ theorem cubic_pole_ratio (ω : PontryaginDual C₁)
     (v w : S) (hne : v ≠ w) (hvp : v.val ∈ sLocalPrimaryPlaces S p)
     (hwp : w.val ∈ sLocalPrimaryPlaces S p)
     (hv : v ∈ sLocalFinitePolePlaces c) (hw : w ∈ sLocalFinitePolePlaces c) :
-    ∃ g : N₁, ω (cubicNormOneClass F g) = 1 ∧ atInfinity g.val = 1 ∧
+    ∃ g : N₁, ω (feNormOneClass F g) = 1 ∧ atInfinity g.val = 1 ∧
       ∀ x : Primes(F), Valued.v (g.val.val.2 x) ≠ (1 : ℤᵐ⁰) ↔ x = v.val ∨ x = w.val := by
   classical
   let f (i : S) := i.val.asIdeal.inertiaDeg (𝓞 ℚ)
@@ -328,8 +332,8 @@ theorem cubic_pole_ratio (ω : PontryaginDual C₁)
     change p.asIdeal.absNorm ^ f i = i.val.asIdeal.absNorm at h
     rw [h0, pow_zero] at h
     exact (HeightOneSpectrum.one_lt_absNorm i.val).ne h
-  obtain ⟨u, hu, hzu⟩ := cubic_pole_uniformizer F c v hv
-  obtain ⟨t, ht, hzt⟩ := cubic_pole_uniformizer F c w hw
+  obtain ⟨u, hu, hzu⟩ := fe_pole_uniformizer F c v hv
+  obtain ⟨t, ht, hzt⟩ := fe_pole_uniformizer F c w hw
   let q : (SAdeleRing F S)ˣ →* SIdeleQuotient F S := QuotientGroup.mk' _
   let ins (i : S) (z : (i.val.adicCompletion F)ˣ) : (SAdeleRing F S)ˣ :=
     (ContinuousMulEquiv.prodUnits (InfiniteAdeleRing F) ((s : S) → s.val.adicCompletion F)).symm
@@ -368,7 +372,7 @@ theorem cubic_pole_ratio (ω : PontryaginDual C₁)
     rw [hχ] at hx
     change 1 = sIdeleRestriction F S d (QuotientGroup.mk g) at hx
     rw [sIdeleRestriction_mk] at hx
-    exact (hd (cubicNormOneClass F A)).symm.trans hx.symm
+    exact (hd (feNormOneClass F A)).symm.trans hx.symm
   · apply Units.ext
     change a.val.1 = 1
     rw [(sIdeleInsertion_apply F S g).1]
@@ -442,37 +446,37 @@ local notation "C₁" => MonoidHom.ker (ideleClassNorm F)
 local notation "A∞" => InfiniteAdeleRing F
 local notation "N∞" => MonoidHom.ker (infiniteIdeleNorm F)
 
-private def cubicArchInsertion : A∞ˣ →* IdeleGroup (𝓞 F) F :=
+private def feArchInsertion : A∞ˣ →* IdeleGroup (𝓞 F) F :=
   Units.map (MonoidHom.inl A∞ (FiniteAdeleRing (𝓞 F) F))
 
 /-- Passage from the norm-one archimedean ideles to norm-one idele classes. -/
-def cubicArchClass : N∞ →ₜ* C₁ :=
+def feArchClass : N∞ →ₜ* C₁ :=
   let q : IdeleGroup (𝓞 F) F →* C := QuotientGroup.mk' _
-  let f := (q.comp (cubicArchInsertion F)).comp
+  let f := (q.comp (feArchInsertion F)).comp
     (infiniteIdeleNorm F).ker.subtype
   { f.codRestrict _ (fun g => by
-      change ideleNorm F (cubicArchInsertion F g.val) = 1
-      rw [cubicArchInsertion, ← infiniteIdeleNorm_eq_global F]
+      change ideleNorm F (feArchInsertion F g.val) = 1
+      rw [feArchInsertion, ← infiniteIdeleNorm_eq_global F]
       exact g.property) with
     continuous_toFun := by
       apply Continuous.subtype_mk
       exact (QuotientGroup.continuous_mk.comp
         ((continuous_id.prodMk continuous_const).units_map _)).comp continuous_subtype_val }
 
-private def cubicArchUnit (w : InfinitePlace F) (g : A∞ˣ) :
+private def feArchUnit (w : InfinitePlace F) (g : A∞ˣ) :
     w.Completionˣ :=
   Units.map (Pi.evalRingHom _ w).toMonoidHom g
 
-private theorem cubicArchClass_eq_mul (w₁ w₂ : InfinitePlace F)
+private theorem feArchClass_eq_mul (w₁ w₂ : InfinitePlace F)
     (hd : w₁ ≠ w₂) (hc : ∀ w : InfinitePlace F, w = w₁ ∨ w = w₂)
     (g : N∞) :
-    (cubicArchClass F g).val =
-      IdeleClassGroup.ofCompletion (𝓞 F) F w₁ (cubicArchUnit F w₁ g.val) *
-        IdeleClassGroup.ofCompletion (𝓞 F) F w₂ (cubicArchUnit F w₂ g.val) := by
+    (feArchClass F g).val =
+      IdeleClassGroup.ofCompletion (𝓞 F) F w₁ (feArchUnit F w₁ g.val) *
+        IdeleClassGroup.ofCompletion (𝓞 F) F w₂ (feArchUnit F w₂ g.val) := by
   let q : IdeleGroup (𝓞 F) F →* C := QuotientGroup.mk' _
-  change q (cubicArchInsertion F g.val) =
-    q (IdeleGroup.ofCompletion (𝓞 F) F w₁ (cubicArchUnit F w₁ g.val)) *
-      q (IdeleGroup.ofCompletion (𝓞 F) F w₂ (cubicArchUnit F w₂ g.val))
+  change q (feArchInsertion F g.val) =
+    q (IdeleGroup.ofCompletion (𝓞 F) F w₁ (feArchUnit F w₁ g.val)) *
+      q (IdeleGroup.ofCompletion (𝓞 F) F w₂ (feArchUnit F w₂ g.val))
   rw [← map_mul]
   congr 1
   apply Units.ext
@@ -487,7 +491,7 @@ private theorem cubicArchClass_eq_mul (w₁ w₂ : InfinitePlace F)
   · change (1 : FiniteAdeleRing (𝓞 F) F) = 1 * 1
     exact (one_mul _).symm
 
-private theorem cubicArchLocal_parameters (c : HeckeCharacter (𝓞 F) F)
+private theorem feArchLocal_parameters (c : HeckeCharacter (𝓞 F) F)
     (hc : ∀ a, ‖c a‖ = 1) (w : InfinitePlace F) (hw : w.IsComplex) :
     ∃ (t : ℝ) (m : ℤ), ∀ u : w.Completionˣ,
       let z := extensionEmbedding w u.val
@@ -525,7 +529,7 @@ private theorem cubicArchLocal_parameters (c : HeckeCharacter (𝓞 F) F)
   congr 1
   ring
 
-private theorem cubicArch_log (w₁ w₂ : InfinitePlace F)
+private theorem feArch_log (w₁ w₂ : InfinitePlace F)
     (h₁ : w₁.IsComplex) (h₂ : w₂.IsComplex) (hd : w₁ ≠ w₂)
     (hc : ∀ w : InfinitePlace F, w = w₁ ∨ w = w₂) (g : N∞) :
     Real.log ‖extensionEmbedding w₂ (g.val.val w₂)‖ =
@@ -542,13 +546,13 @@ private theorem cubicArch_log (w₁ w₂ : InfinitePlace F)
 
 /-- On norm-one archimedean ideles with two complex places, a unitary character has
 one radial frequency and two integral angular frequencies. -/
-theorem cubicArchCharacter_parameters (ω : PontryaginDual C₁)
+theorem feArchCharacter_parameters (ω : PontryaginDual C₁)
     (w₁ w₂ : InfinitePlace F) (h₁ : w₁.IsComplex) (h₂ : w₂.IsComplex)
     (hd : w₁ ≠ w₂) (hc : ∀ w : InfinitePlace F, w = w₁ ∨ w = w₂) :
     ∃ (t : ℝ) (m₁ m₂ : ℤ), ∀ g : N∞,
       let z₁ := extensionEmbedding w₁ (g.val.val w₁)
       let z₂ := extensionEmbedding w₂ (g.val.val w₂)
-      (ω (cubicArchClass F g) : ℂ) =
+      (ω (feArchClass F g) : ℂ) =
         Complex.exp ((t : ℂ) * Complex.I * (Real.log ‖z₁‖ : ℂ)) *
           (z₁ / (‖z₁‖ : ℂ)) ^ m₁ * (z₂ / (‖z₂‖ : ℂ)) ^ m₂ := by
   let s : ℝ≥0ˣ →* C :=
@@ -574,13 +578,13 @@ theorem cubicArchCharacter_parameters (ω : PontryaginDual C₁)
   let c : HeckeCharacter (𝓞 F) F :=
     (⟨Circle.coeHom, continuous_subtype_val⟩ : Circle →ₜ* ℂ).comp (ω.comp r)
   have hcn (a : C) : ‖c a‖ = 1 := Circle.norm_coe _
-  obtain ⟨t₁, m₁, hm₁⟩ := cubicArchLocal_parameters F c hcn w₁ h₁
-  obtain ⟨t₂, m₂, hm₂⟩ := cubicArchLocal_parameters F c hcn w₂ h₂
+  obtain ⟨t₁, m₁, hm₁⟩ := feArchLocal_parameters F c hcn w₁ h₁
+  obtain ⟨t₂, m₂, hm₂⟩ := feArchLocal_parameters F c hcn w₂ h₂
   refine ⟨t₁ - t₂, m₁, m₂, fun g => ?_⟩
-  have hcg : c (cubicArchClass F g).val = (ω (cubicArchClass F g) : ℂ) := by
-    change (ω (r (cubicArchClass F g).val) : ℂ) = _
+  have hcg : c (feArchClass F g).val = (ω (feArchClass F g) : ℂ) := by
+    change (ω (r (feArchClass F g).val) : ℂ) = _
     rw [hr]
-  rw [← hcg, cubicArchClass_eq_mul F w₁ w₂ hd hc, map_mul, hm₁, hm₂]
+  rw [← hcg, feArchClass_eq_mul F w₁ w₂ hd hc, map_mul, hm₁, hm₂]
   let z₁ := extensionEmbedding w₁ (g.val.val w₁)
   let z₂ := extensionEmbedding w₂ (g.val.val w₂)
   change Complex.exp ((t₁ : ℂ) * Complex.I * (Real.log ‖z₁‖ : ℂ)) *
@@ -589,14 +593,14 @@ theorem cubicArchCharacter_parameters (ω : PontryaginDual C₁)
         (z₂ / (‖z₂‖ : ℂ)) ^ m₂) =
     Complex.exp (((t₁ - t₂ : ℝ) : ℂ) * Complex.I * (Real.log ‖z₁‖ : ℂ)) *
       (z₁ / (‖z₁‖ : ℂ)) ^ m₁ * (z₂ / (‖z₂‖ : ℂ)) ^ m₂
-  have hlog : Real.log ‖z₂‖ = -Real.log ‖z₁‖ := cubicArch_log F w₁ w₂ h₁ h₂ hd hc g
+  have hlog : Real.log ‖z₂‖ = -Real.log ‖z₁‖ := feArch_log F w₁ w₂ h₁ h₂ hd hc g
   rw [hlog, Complex.ofReal_neg]
   rw [mul_mul_mul_comm, ← Complex.exp_add, ← mul_assoc]
   push_cast
   congr 2
   ring_nf
 
-private theorem cubicArchUnit_normOne (u : (𝓞 F)ˣ) :
+private theorem feArchUnit_normOne (u : (𝓞 F)ˣ) :
     infiniteIdeleNorm F (Units.map (((algebraMap F A∞).comp (algebraMap (𝓞 F) F)).toMonoidHom) u) =
       1 := by
   apply Units.ext
@@ -615,20 +619,20 @@ private theorem cubicArchUnit_normOne (u : (𝓞 F)ˣ) :
   norm_cast
 
 /-- The archimedean diagonal of a global unit has norm one. -/
-def cubicArchUnitDiagonal (u : (𝓞 F)ˣ) : N∞ :=
+def feArchUnitDiagonal (u : (𝓞 F)ˣ) : N∞ :=
   ⟨Units.map (((algebraMap F A∞).comp (algebraMap (𝓞 F) F)).toMonoidHom) u,
-    cubicArchUnit_normOne F u⟩
+    feArchUnit_normOne F u⟩
 
 /-- The archimedean diagonal agrees with the place's embedding of the global unit. -/
-theorem cubicArchUnitDiagonal_apply (u : (𝓞 F)ˣ) (w : InfinitePlace F) :
-    extensionEmbedding w ((cubicArchUnitDiagonal F u).val.val w) =
+theorem feArchUnitDiagonal_apply (u : (𝓞 F)ˣ) (w : InfinitePlace F) :
+    extensionEmbedding w ((feArchUnitDiagonal F u).val.val w) =
       w.embedding (u : F) := by
   change extensionEmbedding w (algebraMap F A∞ (u : F) w) = _
   rw [InfiniteAdeleRing.algebraMap_apply, extensionEmbedding_coe]
   rfl
 
 /-- A number field with two infinite places has a nontorsion unit. -/
-theorem cubicArch_exists_unit (h : Fintype.card (InfinitePlace F) = 2) :
+theorem feArch_exists_unit (h : Fintype.card (InfinitePlace F) = 2) :
     ∃ u : (𝓞 F)ˣ, u ∉ Units.torsion F := by
   let i : Fin (NumberField.Units.rank F) := ⟨0, by simp [NumberField.Units.rank, h]⟩
   refine ⟨fundSystem F i, fun hu => ?_⟩
@@ -647,10 +651,10 @@ local notation "p∞" =>
 
 /-- The finite class group and a common exponent on finite integral units make any
 character trivial on the norm-one archimedean ideles a finite-order character. -/
-theorem cubicArch_trivial_finiteOrder (ω : PontryaginDual C₁)
-    (hArch : ∀ g : N∞, ω (cubicArchClass F g) = 1) :
+theorem feArch_trivial_finiteOrder (ω : PontryaginDual C₁)
+    (hArch : ∀ g : N∞, ω (feArchClass F g) = 1) :
     IsOfFinOrder ω := by
-  obtain ⟨n, hn, hfin⟩ := cubic_finite_unit_character_exponent F ω
+  obtain ⟨n, hn, hfin⟩ := fe_finite_unit_character_exponent F ω
   obtain ⟨p, _, _, hexact, _⟩ := normOne_ideal_class_exact F
   let h := Nat.card (CommRing.Pic (𝓞 F))
   obtain ⟨_, _, _, _, _, hFinite, ⟨ePic⟩⟩ := ideleClassGroup_finiteness F
@@ -667,7 +671,7 @@ theorem cubicArch_trivial_finiteOrder (ω : PontryaginDual C₁)
     change ideleClassNorm F (QuotientGroup.mk x) = 1
     rw [hx]
     exact a.property⟩
-  have hxa : cubicNormOneClass F X = a := Subtype.ext hx
+  have hxa : feNormOneClass F X = a := Subtype.ext hx
   have hpow : p (X ^ h) = 1 :=
     (map_pow p X h).trans (pow_card_eq_one' (x := p X))
   obtain ⟨y, hy⟩ := (hexact _).mp hpow
@@ -681,16 +685,16 @@ theorem cubicArch_trivial_finiteOrder (ω : PontryaginDual C₁)
     rw [map_mul, hdNorm, one_mul] at hnorm
     exact hnorm.trans (X ^ h).property
   let B : J₁ := ⟨b, hbNorm⟩
-  have hba : cubicNormOneClass F B = a ^ h := by
+  have hba : feNormOneClass F B = a ^ h := by
     apply Subtype.ext
     have H := congrArg q hdb
     have hqd : q d = 1 := (QuotientGroup.eq_one_iff _).mpr hd
     rw [map_mul, hqd, one_mul] at H
     change q b = _
-    exact H.trans (congrArg Subtype.val ((map_pow (cubicNormOneClass F) X h).trans
+    exact H.trans (congrArg Subtype.val ((map_pow (feNormOneClass F) X h).trans
       (congrArg (fun k : C₁ => k ^ h) hxa)))
-  let g : N∞ := ⟨p∞ b, cubic_infiniteNorm_of_integral F b hb hbNorm⟩
-  let bArch := cubicArchInsertion F g.val
+  let g : N∞ := ⟨p∞ b, fe_infiniteNorm_of_integral F b hb hbNorm⟩
+  let bArch := feArchInsertion F g.val
   have hbArchnorm : ideleNorm F bArch = 1 :=
     (infiniteIdeleNorm_eq_global F g.val).symm.trans g.property
   have hbArch : bArch ∈ (MonoidHom.range j) := by
@@ -709,7 +713,7 @@ theorem cubicArch_trivial_finiteOrder (ω : PontryaginDual C₁)
   let w : C₁ →* Circle := (ω : C₁ →ₜ* Circle).toMonoidHom
   change w a ^ (h * n) = 1
   rw [pow_mul, ← map_pow w, ← hba, hB, map_mul, map_mul]
-  change (ω (cubicNormOneClass F U) * ω (cubicArchClass F g)) ^ n = _
+  change (ω (feNormOneClass F U) * ω (feArchClass F g)) ^ n = _
   rw [hArch g, mul_one]
   exact hfin U hU hUArch
 
@@ -718,13 +722,13 @@ end
 
 /-! ### Algebraic numbers, valuations and the torsion diagonals -/
 
-private theorem cubic_algebraic_norm {z : ℂ} (hz : IsAlgebraic ℚ z) :
+private theorem fe_algebraic_norm {z : ℂ} (hz : IsAlgebraic ℚ z) :
     IsAlgebraic ℚ (‖z‖ : ℂ) := by
   apply IsAlgebraic.of_pow (n := 2) (by decide)
   rw [← Complex.mul_conj']
   exact hz.mul (hz.algHom (starRingEnd ℂ).toRatAlgHom)
 
-private theorem cubic_algebraic_zpow {z : ℂ} (hz : IsAlgebraic ℚ z) (m : ℤ) :
+private theorem fe_algebraic_zpow {z : ℂ} (hz : IsAlgebraic ℚ z) (m : ℤ) :
     IsAlgebraic ℚ (z ^ m) := by
   cases m with
   | ofNat n =>
@@ -733,12 +737,12 @@ private theorem cubic_algebraic_zpow {z : ℂ} (hz : IsAlgebraic ℚ z) (m : ℤ
       exact hz.pow n
   | negSucc n => simpa only [zpow_negSucc] using (hz.pow (n + 1)).inv
 
-private theorem cubic_algebraic_embedding {F : Type*} [Field F] [NumberField F]
+private theorem fe_algebraic_embedding {F : Type*} [Field F] [NumberField F]
     (σ : F →+* ℂ) (x : F) : IsAlgebraic ℚ (σ x) :=
   (Algebra.IsAlgebraic.isAlgebraic (R := ℚ) x).algHom σ.toRatAlgHom
 
 /-- The logarithm of the absolute value under a complex embedding, as an additive map. -/
-private def cubicLogAbs {F : Type*} [Field F] (σ : F →+* ℂ) : Additive Fˣ →+ ℝ where
+private def feLogAbs {F : Type*} [Field F] (σ : F →+* ℂ) : Additive Fˣ →+ ℝ where
   toFun x := Real.log ‖σ (x.toMul : F)‖
   map_zero' := by simp
   map_add' x y := by
@@ -747,7 +751,7 @@ private def cubicLogAbs {F : Type*} [Field F] (σ : F →+* ℂ) : Additive Fˣ 
     · exact norm_ne_zero_iff.mpr ((map_ne_zero σ).mpr x.toMul.ne_zero)
     · exact norm_ne_zero_iff.mpr ((map_ne_zero σ).mpr y.toMul.ne_zero)
 
-private theorem cubic_zpow_infinite_order {M : Type*} [Group M] {u : M} {a : ℤ}
+private theorem fe_zpow_infinite_order {M : Type*} [Group M] {u : M} {a : ℤ}
     (hu : ¬ IsOfFinOrder u) (h : IsOfFinOrder (u ^ a)) : a = 0 := by
   obtain ⟨N, hN, hp⟩ := h.exists_pow_eq_one
   rw [← zpow_natCast, ← zpow_mul] at hp
@@ -771,12 +775,12 @@ local notation "atInfinity" =>
   Units.map (RingHom.toMonoidHom (RingHom.fst (InfiniteAdeleRing F) (FiniteAdeleRing (𝓞 F) F)))
 local notation "principal" => IdeleGroup.unitEmbedding (𝓞 F) F
 
-private def cubicOrd (v : Prime) : Fˣ →* Multiplicative ℤ :=
+private def feOrd (v : Prime) : Fˣ →* Multiplicative ℤ :=
   WithZero.unitsWithZeroEquiv.toMonoidHom.comp
     (Units.map (v.valuation F).toMonoidWithZeroHom.toMonoidHom)
 
-private theorem cubicOrd_eq_one (v : Prime) (a : Fˣ) :
-    cubicOrd v a = 1 ↔ v.valuation F (a : F) = 1 := by
+private theorem feOrd_eq_one (v : Prime) (a : Fˣ) :
+    feOrd v a = 1 ↔ v.valuation F (a : F) = 1 := by
   change WithZero.unitsWithZeroEquiv
     (Units.map (v.valuation F).toMonoidWithZeroHom.toMonoidHom a) = 1 ↔ _
   rw [← map_one WithZero.unitsWithZeroEquiv, WithZero.unitsWithZeroEquiv.injective.eq_iff]
@@ -784,27 +788,27 @@ private theorem cubicOrd_eq_one (v : Prime) (a : Fˣ) :
   apply Units.ext
   exact h
 
-private theorem cubicOrd_unit (v : Prime) (u : (𝓞 F)ˣ) :
-    cubicOrd v (Units.map (algebraMap (𝓞 F) F).toMonoidHom u) = 1 := by
-  rw [cubicOrd_eq_one]
+private theorem feOrd_unit (v : Prime) (u : (𝓞 F)ˣ) :
+    feOrd v (Units.map (algebraMap (𝓞 F) F).toMonoidHom u) = 1 := by
+  rw [feOrd_eq_one]
   change v.valuation F (algebraMap (𝓞 F) F (u : 𝓞 F)) = 1
   rw [v.valuation_of_algebraMap]
   exact HeightOneSpectrum.intValuation_eq_one_iff.mpr (v.asIdeal.notMem_of_isUnit u.isUnit)
 
 /-- A field element has a norm-one archimedean diagonal on which the given character
 takes a root-of-unity value. -/
-private def CubicTorsionDiagonal (ω : PontryaginDual C₁) (a : Fˣ) : Prop :=
+private def FeTorsionDiagonal (ω : PontryaginDual C₁) (a : Fˣ) : Prop :=
   ∃ g : N∞,
     (∀ w : InfinitePlace F, extensionEmbedding w (g.val.val w) = w.embedding (a : F)) ∧
-    IsOfFinOrder (ω (cubicArchClass F g))
+    IsOfFinOrder (ω (feArchClass F g))
 
-private theorem cubic_unit_torsion_diagonal (ω : PontryaginDual C₁) (u : (𝓞 F)ˣ) :
-    CubicTorsionDiagonal ω (Units.map (algebraMap (𝓞 F) F).toMonoidHom u) := by
+private theorem fe_unit_torsion_diagonal (ω : PontryaginDual C₁) (u : (𝓞 F)ˣ) :
+    FeTorsionDiagonal ω (Units.map (algebraMap (𝓞 F) F).toMonoidHom u) := by
   let a := Units.map (algebraMap (𝓞 F) F).toMonoidHom u
-  let A := cubicArchUnitDiagonal F u
-  refine ⟨A, cubicArchUnitDiagonal_apply F u, ?_⟩
+  let A := feArchUnitDiagonal F u
+  refine ⟨A, feArchUnitDiagonal_apply F u, ?_⟩
   let G : N₁ := ⟨principal a, (ideleNorm_spec F).2 (Set.mem_range_self a)⟩
-  let I := cubicArchIdele F A
+  let I := feArchIdele F A
   let V := G / I
   have hVfinite : V.val ∈ (Units.map (integralAdelesOutside F ∅).subtype.toMonoidHom).range := by
     apply (mem_integralIdeleRange_iff F V.val).mpr
@@ -817,12 +821,12 @@ private theorem cubic_unit_torsion_diagonal (ω : PontryaginDual C₁) (u : (�
     rw [map_div, heval, div_one]
     change Valued.v (algebraMap F (v.adicCompletion F) (a : F)) = 1
     exact (HeightOneSpectrum.valuedAdicCompletion_eq_valuation' (v := v) (a : F)).trans
-      ((cubicOrd_eq_one v a).mp (cubicOrd_unit v u))
+      ((feOrd_eq_one v a).mp (feOrd_unit v u))
   have hVarch : atInfinity V.val = 1 := by
     change atInfinity (G.val / I.val) = 1
     rw [map_div]
     exact div_self' (atInfinity G.val)
-  let q := cubicNormOneClass F
+  let q := feNormOneClass F
   have hG : q G = 1 := by
     apply Subtype.ext
     exact (QuotientGroup.eq_one_iff (principal a)).mpr (Set.mem_range_self a)
@@ -830,12 +834,12 @@ private theorem cubic_unit_torsion_diagonal (ω : PontryaginDual C₁) (u : (�
     change (ω.toMonoidHom.comp q) (G / I) = _
     rw [map_div, MonoidHom.comp_apply, MonoidHom.comp_apply, hG, map_one, one_div]
     rfl
-  obtain ⟨n, hn, hnV⟩ := cubic_finite_unit_character_exponent F ω
+  obtain ⟨n, hn, hnV⟩ := fe_finite_unit_character_exponent F ω
   have h : IsOfFinOrder (ω (q V)) := isOfFinOrder_iff_pow_eq_one.mpr ⟨n, hn, hnV V hVfinite hVarch⟩
   rw [hV, isOfFinOrder_inv_iff] at h
   exact h
 
-private theorem cubic_pole_torsion_diagonal {T : Finset Prime}
+private theorem fe_pole_torsion_diagonal {T : Finset Prime}
     (ω : PontryaginDual C₁) (hT : NormOneCharacterUnramifiedOutside ω T)
     (p : HeightOneSpectrum (𝓞 ℚ)) (c : QuasiCharacter (SIdeleQuotient F T))
     (hc : ∀ x : (sIdeleQuotientNorm F T).ker,
@@ -844,10 +848,10 @@ private theorem cubic_pole_torsion_diagonal {T : Finset Prime}
     (hwp : w.val ∈ sLocalPrimaryPlaces T p)
     (hv : v ∈ sLocalFinitePolePlaces c) (hw : w ∈ sLocalFinitePolePlaces c) :
     ∃ a : Fˣ, (∀ x : Prime, x.valuation F (a : F) ≠ 1 ↔ x ∈ ({v.val, w.val} : Finset Prime)) ∧
-      CubicTorsionDiagonal ω a := by
-  obtain ⟨G, hG, hGarch, hGsupp⟩ := cubic_pole_ratio F ω hT p c hc
+      FeTorsionDiagonal ω a := by
+  obtain ⟨G, hG, hGarch, hGsupp⟩ := fe_pole_ratio F ω hT p c hc
     v w hvw hvp hwp hv hw
-  obtain ⟨a, A, hA, htorsion, hsupp⟩ := cubic_principalize_character F ω G hG hGarch
+  obtain ⟨a, A, hA, htorsion, hsupp⟩ := fe_principalize_character F ω G hG hGarch
   refine ⟨a, fun x ↦ (not_congr (hsupp x)).trans ((hGsupp x).trans (by simp)),
     A, fun w ↦ ?_, htorsion⟩
   rw [hA]
@@ -859,7 +863,7 @@ private theorem cubic_pole_torsion_diagonal {T : Finset Prime}
 
 /-- The logarithms of the absolute values of an element with a norm-one diagonal sum to
 zero, with the multiplicities of the places. -/
-private theorem cubic_log_sum_of_diagonal {a : Fˣ} (g : N∞)
+private theorem fe_log_sum_of_diagonal {a : Fˣ} (g : N∞)
     (hg : ∀ w : InfinitePlace F, extensionEmbedding w (g.val.val w) = w.embedding (a : F)) :
     ∑ w : InfinitePlace F, (w.mult : ℝ) * Real.log (w (a : F)) = 0 := by
   refine (Finset.sum_congr rfl fun w _ ↦ ?_).trans (infiniteIdeleLog_sum_zero F g)
@@ -868,7 +872,7 @@ private theorem cubic_log_sum_of_diagonal {a : Fˣ} (g : N∞)
     InfinitePlace.norm_embedding_eq]
 
 /-- An element with a norm-one diagonal has norm `±1`. -/
-private theorem cubic_abs_norm_of_log_sum {a : F} (ha : a ≠ 0)
+private theorem fe_abs_norm_of_log_sum {a : F} (ha : a ≠ 0)
     (h : ∑ w : InfinitePlace F, (w.mult : ℝ) * Real.log (w a) = 0) :
     |(Algebra.norm ℚ a : ℝ)| = 1 := by
   have hprod := InfinitePlace.prod_eq_abs_norm a
@@ -882,7 +886,7 @@ private theorem cubic_abs_norm_of_log_sum {a : F} (ha : a ≠ 0)
   exact_mod_cast hprod.symm
 
 /-- At a real place, an element of absolute value one is a root of unity. -/
-private theorem cubic_isOfFinOrder_of_real_place {w : InfinitePlace F} (hw : w.IsReal)
+private theorem fe_isOfFinOrder_of_real_place {w : InfinitePlace F} (hw : w.IsReal)
     {a : Fˣ} (ha : w (a : F) = 1) : IsOfFinOrder a := by
   have h := InfinitePlace.norm_embedding_of_isReal hw (a : F)
   rw [ha, Real.norm_eq_abs] at h
@@ -895,8 +899,8 @@ private theorem cubic_isOfFinOrder_of_real_place {w : InfinitePlace F} (hw : w.I
     rw [show a = -1 from Units.ext this]
     exact isOfFinOrder_iff_pow_eq_one.mpr ⟨2, by decide, neg_one_sq⟩
 
-private theorem cubic_logAbs_eq (w : InfinitePlace F) (a : Fˣ) :
-    cubicLogAbs w.embedding (Additive.ofMul a) = Real.log (w (a : F)) := by
+private theorem fe_logAbs_eq (w : InfinitePlace F) (a : Fˣ) :
+    feLogAbs w.embedding (Additive.ofMul a) = Real.log (w (a : F)) := by
   change Real.log ‖w.embedding (a : F)‖ = _
   rw [InfinitePlace.norm_embedding_eq]
 
@@ -1106,11 +1110,11 @@ private theorem cubicArchLocal_real_parameters (c : HeckeCharacter (𝓞 F) F)
 
 /-- The class of a norm-one archimedean idele is the product of its local classes. -/
 private theorem cubicArchClass_eq_prod (g : N∞) :
-    (cubicArchClass F g).val =
-      ∏ w, IdeleClassGroup.ofCompletion (𝓞 F) F w (cubicArchUnit F w g.val) := by
+    (feArchClass F g).val =
+      ∏ w, IdeleClassGroup.ofCompletion (𝓞 F) F w (feArchUnit F w g.val) := by
   let q : IdeleGroup (𝓞 F) F →* C := QuotientGroup.mk' _
-  change q (cubicArchInsertion F g.val) =
-    ∏ w, q (IdeleGroup.ofCompletion (𝓞 F) F w (cubicArchUnit F w g.val))
+  change q (feArchInsertion F g.val) =
+    ∏ w, q (IdeleGroup.ofCompletion (𝓞 F) F w (feArchUnit F w g.val))
   rw [← map_prod]
   congr 1
   apply Units.ext
@@ -1141,14 +1145,14 @@ private theorem cubicArch_complex_parameters (ω : PontryaginDual C₁)
     (w₁ w₂ : InfinitePlace F) (h₁ : w₁.IsReal) (h₂ : w₂.IsComplex)
     (hd : w₁ ≠ w₂) (hc : ∀ w : InfinitePlace F, w = w₁ ∨ w = w₂) :
     ∃ (τ : ℝ) (m : ℤ), ∀ g : N∞,
-      (ω (cubicArchClass F g) : ℂ) ^ 2 =
+      (ω (feArchClass F g) : ℂ) ^ 2 =
         Complex.exp ((τ : ℂ) * Complex.I *
           (Real.log ‖extensionEmbedding w₂ (g.val.val w₂)‖ : ℂ)) *
           (extensionEmbedding w₂ (g.val.val w₂) /
             (‖extensionEmbedding w₂ (g.val.val w₂)‖ : ℂ)) ^ (2 * m) := by
   obtain ⟨c, hcn, hcω⟩ := cubic_heckeCharacter_of_normOne ω
   obtain ⟨t₁, ht₁⟩ := cubicArchLocal_real_parameters c hcn w₁ h₁
-  obtain ⟨t₂, m, ht₂⟩ := cubicArchLocal_parameters F c hcn w₂ h₂
+  obtain ⟨t₂, m, ht₂⟩ := feArchLocal_parameters F c hcn w₂ h₂
   refine ⟨2 * t₂ - 4 * t₁, m, fun g => ?_⟩
   have huniv : (Finset.univ : Finset (InfinitePlace F)) = {w₁, w₂} := by
     ext w
@@ -1187,7 +1191,7 @@ private theorem cubicArch_real_parameters (ω : PontryaginDual C₁)
     (h12 : w₁ ≠ w₂) (h13 : w₁ ≠ w₃) (h23 : w₂ ≠ w₃)
     (hc : ∀ w : InfinitePlace F, w = w₁ ∨ w = w₂ ∨ w = w₃) :
     ∃ s₁ s₂ : ℝ, ∀ g : N∞,
-      (ω (cubicArchClass F g) : ℂ) ^ 2 = Complex.exp (Complex.I *
+      (ω (feArchClass F g) : ℂ) ^ 2 = Complex.exp (Complex.I *
         ((s₁ * Real.log ‖extensionEmbedding w₁ (g.val.val w₁)‖ +
           s₂ * Real.log ‖extensionEmbedding w₂ (g.val.val w₂)‖ : ℝ) : ℂ)) := by
   obtain ⟨c, hcn, hcω⟩ := cubic_heckeCharacter_of_normOne ω
@@ -1253,50 +1257,50 @@ local notation "N∞" => MonoidHom.ker (infiniteIdeleNorm F)
 
 /-- A character whose square is trivial on the norm-one archimedean ideles has finite
 order. -/
-private theorem cubic_finiteOrder_of_sq_trivial (ω : PontryaginDual C₁)
-    (h : ∀ g : N∞, (ω (cubicArchClass F g) : ℂ) ^ 2 = 1) : IsOfFinOrder ω := by
+private theorem fe_finiteOrder_of_sq_trivial (ω : PontryaginDual C₁)
+    (h : ∀ g : N∞, (ω (feArchClass F g) : ℂ) ^ 2 = 1) : IsOfFinOrder ω := by
   have h2 : IsOfFinOrder (ω ^ 2) := by
-    apply cubicArch_trivial_finiteOrder F (ω ^ 2)
+    apply feArch_trivial_finiteOrder F (ω ^ 2)
     intro g
     apply Circle.ext
-    change ((ω ^ 2 : PontryaginDual C₁) (cubicArchClass F g) : ℂ) = 1
-    rw [show (ω ^ 2 : PontryaginDual C₁) (cubicArchClass F g) = ω (cubicArchClass F g) ^ 2 from
+    change ((ω ^ 2 : PontryaginDual C₁) (feArchClass F g) : ℂ) = 1
+    rw [show (ω ^ 2 : PontryaginDual C₁) (feArchClass F g) = ω (feArchClass F g) ^ 2 from
       ContinuousMonoidHom.pow_apply (ω : C₁ →ₜ* Circle) 2 _, Circle.coe_pow]
     exact h g
   exact (isOfFinOrder_pow.mp h2).resolve_right (by norm_num)
 
 /-- The square of a root-of-unity value of the character is a root of unity in `ℂ`. -/
-private theorem cubic_sq_isOfFinOrder (ω : PontryaginDual C₁) {g : N∞}
-    (h : IsOfFinOrder (ω (cubicArchClass F g))) :
-    IsOfFinOrder ((ω (cubicArchClass F g) : ℂ) ^ 2) :=
+private theorem fe_sq_isOfFinOrder (ω : PontryaginDual C₁) {g : N∞}
+    (h : IsOfFinOrder (ω (feArchClass F g))) :
+    IsOfFinOrder ((ω (feArchClass F g) : ℂ) ^ 2) :=
   (Circle.coeHom.isOfFinOrder h).pow
 
 /-- The positive real number `w a` as an algebraic complex number. -/
-private theorem cubic_algebraic_place (w : InfinitePlace F) (a : F) :
+private theorem fe_algebraic_place (w : InfinitePlace F) (a : F) :
     IsAlgebraic ℚ ((w a : ℝ) : ℂ) := by
   rw [← InfinitePlace.norm_embedding_eq]
-  exact cubic_algebraic_norm (cubic_algebraic_embedding w.embedding a)
+  exact fe_algebraic_norm (fe_algebraic_embedding w.embedding a)
 
-private theorem cubic_exp_log_place (w : InfinitePlace F) {a : F} (ha : a ≠ 0) :
+private theorem fe_exp_log_place (w : InfinitePlace F) {a : F} (ha : a ≠ 0) :
     Complex.exp (Real.log (w a) : ℂ) = ((w a : ℝ) : ℂ) := by
   rw [← Complex.ofReal_exp, Real.exp_log (InfinitePlace.pos_iff.mpr ha)]
 
 /-- The logarithms at one place of a product of powers. -/
-private theorem cubic_log_place_mul_zpow (w : InfinitePlace F) (x y : Fˣ) (k l : ℤ) :
+private theorem fe_log_place_mul_zpow (w : InfinitePlace F) (x y : Fˣ) (k l : ℤ) :
     Real.log (w ((x ^ k * y ^ l : Fˣ) : F)) =
       k * Real.log (w (x : F)) + l * Real.log (w (y : F)) := by
-  rw [← cubic_logAbs_eq, ← cubic_logAbs_eq, ← cubic_logAbs_eq, ofMul_mul, ofMul_zpow, ofMul_zpow,
+  rw [← fe_logAbs_eq, ← fe_logAbs_eq, ← fe_logAbs_eq, ofMul_mul, ofMul_zpow, ofMul_zpow,
     map_add, map_zsmul, map_zsmul, zsmul_eq_mul, zsmul_eq_mul]
 
-private theorem cubic_log_place_mul3_zpow (w : InfinitePlace F) (x y z : Fˣ) (k l n : ℤ) :
+private theorem fe_log_place_mul3_zpow (w : InfinitePlace F) (x y z : Fˣ) (k l n : ℤ) :
     Real.log (w ((x ^ k * y ^ l * z ^ n : Fˣ) : F)) =
       k * Real.log (w (x : F)) + l * Real.log (w (y : F)) + n * Real.log (w (z : F)) := by
-  rw [← cubic_logAbs_eq, ← cubic_logAbs_eq, ← cubic_logAbs_eq, ← cubic_logAbs_eq, ofMul_mul,
+  rw [← fe_logAbs_eq, ← fe_logAbs_eq, ← fe_logAbs_eq, ← fe_logAbs_eq, ofMul_mul,
     ofMul_mul, ofMul_zpow, ofMul_zpow, ofMul_zpow, map_add, map_add, map_zsmul, map_zsmul,
     map_zsmul, zsmul_eq_mul, zsmul_eq_mul, zsmul_eq_mul]
 
 /-- A root of unity has absolute value one at every place. -/
-private theorem cubic_place_eq_one_of_isOfFinOrder (w : InfinitePlace F) {a : Fˣ}
+private theorem fe_place_eq_one_of_isOfFinOrder (w : InfinitePlace F) {a : Fˣ}
     (ha : IsOfFinOrder a) : w (a : F) = 1 := by
   obtain ⟨n, hn, he⟩ := ha.exists_pow_eq_one
   have h : w (a : F) ^ n = 1 := by
@@ -1353,35 +1357,33 @@ private theorem cubic_complex_angular_torsion (hdeg : Module.finrank ℚ F = 3)
       exact ComplexEmbedding.isReal_iff.mpr hσ
     exact (InfinitePlace.not_isReal_iff_isComplex.mpr hw) hwr
 
-/-- In a cubic field, with a nontorsion element `ε` that is a unit and an element `a` with
-nonzero valuation at some place, both with norm-one diagonals, the logarithms of their
-absolute values at any one place are independent over `ℤ`. -/
-private theorem cubic_log_independent2 {w₀ : InfinitePlace F} (h₀ : w₀.IsReal)
-    (w : InfinitePlace F) (hw : ∀ β : Fˣ,
+/-- Let `w` be a place at which an element with a norm-one diagonal and logarithm zero is
+torsion. Then, for a nontorsion element `ε` that is a unit and an element `a` with nonzero
+valuation at some place, both with norm-one diagonals, the logarithms of their absolute
+values at `w` are independent over `ℤ`. -/
+private theorem fe_log_independent2 (w : InfinitePlace F) (htor : ∀ β : Fˣ,
       ∑ x : InfinitePlace F, (x.mult : ℝ) * Real.log (x (β : F)) = 0 →
-        Real.log (w (β : F)) = 0 → Real.log (w₀ (β : F)) = 0)
+        Real.log (w (β : F)) = 0 → IsOfFinOrder β)
     {ε a : Fˣ} (hε : ¬ IsOfFinOrder ε)
     (hεs : ∑ x : InfinitePlace F, (x.mult : ℝ) * Real.log (x (ε : F)) = 0)
     (has : ∑ x : InfinitePlace F, (x.mult : ℝ) * Real.log (x (a : F)) = 0)
-    (v : Prime) (hεv : cubicOrd v ε = 1) (hav : cubicOrd v a ≠ 1) (k l : ℤ)
+    (v : Prime) (hεv : feOrd v ε = 1) (hav : feOrd v a ≠ 1) (k l : ℤ)
     (hkl : (k : ℝ) * Real.log (w (ε : F)) + l * Real.log (w (a : F)) = 0) : k = 0 ∧ l = 0 := by
   let β : Fˣ := ε ^ k * a ^ l
   have hβs : ∑ x : InfinitePlace F, (x.mult : ℝ) * Real.log (x (β : F)) = 0 := by
-    simp_rw [β, cubic_log_place_mul_zpow, mul_add, Finset.sum_add_distrib]
+    simp_rw [β, fe_log_place_mul_zpow, mul_add, Finset.sum_add_distrib]
     simp_rw [mul_left_comm (_ : ℝ) (k : ℝ), mul_left_comm (_ : ℝ) (l : ℝ), ← Finset.mul_sum,
       hεs, has, mul_zero, add_zero]
-  have hβw : Real.log (w (β : F)) = 0 := by rw [cubic_log_place_mul_zpow]; exact hkl
-  have hβ0 := hw β hβs hβw
-  have hβt : IsOfFinOrder β := cubic_isOfFinOrder_of_real_place h₀
-    (Real.eq_one_of_pos_of_log_eq_zero (InfinitePlace.pos_iff.mpr β.ne_zero) hβ0)
-  have hord : (cubicOrd v a) ^ l = 1 := by
-    have h1 : cubicOrd v β = 1 := ((cubicOrd v).isOfFinOrder hβt).eq_one'
+  have hβw : Real.log (w (β : F)) = 0 := by rw [fe_log_place_mul_zpow]; exact hkl
+  have hβt : IsOfFinOrder β := htor β hβs hβw
+  have hord : (feOrd v a) ^ l = 1 := by
+    have h1 : feOrd v β = 1 := ((feOrd v).isOfFinOrder hβt).eq_one'
     simpa only [β, map_mul, map_zpow, hεv, one_zpow, one_mul] using h1
   have hl : l = 0 := by
-    have he : l * (cubicOrd v a).toAdd = 0 := congrArg Multiplicative.toAdd hord
+    have he : l * (feOrd v a).toAdd = 0 := congrArg Multiplicative.toAdd hord
     refine (mul_eq_zero.mp he).resolve_right fun h ↦ hav ?_
     exact Multiplicative.toAdd.injective (by simpa using h)
-  refine ⟨cubic_zpow_infinite_order hε ?_, hl⟩
+  refine ⟨fe_zpow_infinite_order hε ?_, hl⟩
   simpa only [β, hl, zpow_zero, mul_one] using hβt
 
 /-- **Complex cubic fields.** A repeated pole, through the element `a`, contradicts the Four
@@ -1391,8 +1393,8 @@ private theorem cubic_complex_false (hFEC : FourExponentialsConjecture)
     (hdeg : Module.finrank ℚ F = 3) (ω : PontryaginDual C₁) (hω : ¬ IsOfFinOrder ω)
     (w₁ w₂ : InfinitePlace F) (h₁ : w₁.IsReal) (h₂ : w₂.IsComplex) (hd : w₁ ≠ w₂)
     (hc : ∀ w : InfinitePlace F, w = w₁ ∨ w = w₂) (ε : Fˣ) (hε : ¬ IsOfFinOrder ε)
-    (hεv : ∀ v : Prime, cubicOrd v ε = 1) (hεχ : CubicTorsionDiagonal ω ε)
-    (a : Fˣ) (v : Prime) (hav : cubicOrd v a ≠ 1) (haχ : CubicTorsionDiagonal ω a) : False := by
+    (hεv : ∀ v : Prime, feOrd v ε = 1) (hεχ : FeTorsionDiagonal ω ε)
+    (a : Fˣ) (v : Prime) (hav : feOrd v a ≠ 1) (haχ : FeTorsionDiagonal ω a) : False := by
   obtain ⟨τ, m, hpar⟩ := cubicArch_complex_parameters ω w₁ w₂ h₁ h₂ hd hc
   let σ := w₂.embedding
   let ℓ (η : Fˣ) : ℝ := Real.log (w₂ (η : F))
@@ -1401,12 +1403,12 @@ private theorem cubic_complex_false (hFEC : FourExponentialsConjecture)
     ext w
     simpa using hc w
   -- The torsion relation and the norm relation for an element with a torsion diagonal.
-  have key (η : Fˣ) (hη : CubicTorsionDiagonal ω η) :
+  have key (η : Fˣ) (hη : FeTorsionDiagonal ω η) :
       (∑ x : InfinitePlace F, (x.mult : ℝ) * Real.log (x (η : F)) = 0) ∧
       IsOfFinOrder (Complex.exp ((τ : ℂ) * Complex.I * (ℓ η : ℂ)) * ζ η ^ (2 * m)) := by
     obtain ⟨g, hg, htor⟩ := hη
-    refine ⟨cubic_log_sum_of_diagonal g hg, ?_⟩
-    have h := cubic_sq_isOfFinOrder ω htor
+    refine ⟨fe_log_sum_of_diagonal g hg, ?_⟩
+    have h := fe_sq_isOfFinOrder ω htor
     rw [hpar g, hg w₂] at h
     have hℓ : ℓ η = Real.log ‖σ (η : F)‖ := by
       change Real.log (w₂ (η : F)) = _
@@ -1421,16 +1423,18 @@ private theorem cubic_complex_false (hFEC : FourExponentialsConjecture)
     rw [huniv, Finset.sum_pair hd, h₁.mult_eq_one, h₂.mult_eq_two] at hβ
     push_cast at hβ
     linarith
-  have hind := cubic_log_independent2 h₁ w₂ (fun β hβ h0 ↦ by rw [hrel β hβ, h0, mul_zero])
+  have hind := fe_log_independent2 w₂ (fun β hβ h0 ↦ fe_isOfFinOrder_of_real_place h₁
+      (Real.eq_one_of_pos_of_log_eq_zero (InfinitePlace.pos_iff.mpr β.ne_zero)
+        (by rw [hrel β hβ, h0, mul_zero])))
     hε hεs has v (hεv v) hav
   have hN (η : Fˣ) (hηs : ∑ x : InfinitePlace F, (x.mult : ℝ) * Real.log (x (η : F)) = 0) :
-      |(Algebra.norm ℚ (η : F) : ℝ)| = 1 := cubic_abs_norm_of_log_sum η.ne_zero hηs
+      |(Algebra.norm ℚ (η : F) : ℝ)| = 1 := fe_abs_norm_of_log_sum η.ne_zero hηs
   by_cases hτ : τ = 0
   · -- Purely angular: the unit has a torsion argument, impossible in degree three.
     have hm : m ≠ 0 := by
       intro hm0
       apply hω
-      apply cubic_finiteOrder_of_sq_trivial ω
+      apply fe_finiteOrder_of_sq_trivial ω
       intro g
       rw [hpar g, hτ, hm0]
       simp
@@ -1502,22 +1506,22 @@ private theorem cubic_complex_false (hFEC : FourExponentialsConjecture)
         simp [y, Rat.smul_def, Complex.mul_re] at h
     obtain ⟨i, j, hij⟩ := hFEC x y hx hy
     have hζalg (η : Fˣ) : IsAlgebraic ℚ (ζ η ^ (2 * m * N : ℤ)) := by
-      apply cubic_algebraic_zpow
+      apply fe_algebraic_zpow
       change IsAlgebraic ℚ (σ (η : F) / (‖σ (η : F)‖ : ℂ))
       rw [div_eq_mul_inv]
-      exact (cubic_algebraic_embedding σ (η : F)).mul
-        (cubic_algebraic_norm (cubic_algebraic_embedding σ (η : F))).inv
+      exact (fe_algebraic_embedding σ (η : F)).mul
+        (fe_algebraic_norm (fe_algebraic_embedding σ (η : F))).inv
     apply hij
     fin_cases i <;> fin_cases j
     · change IsAlgebraic ℚ (Complex.exp ((Real.log (w₂ (ε : F)) : ℂ) * 1))
-      rw [mul_one, cubic_exp_log_place w₂ ε.ne_zero]
-      exact cubic_algebraic_place w₂ (ε : F)
+      rw [mul_one, fe_exp_log_place w₂ ε.ne_zero]
+      exact fe_algebraic_place w₂ (ε : F)
     · change IsAlgebraic ℚ (Complex.exp ((ℓ ε : ℂ) * (-(τ * N : ℝ) * Complex.I)))
       rw [hεN]
       exact hζalg ε
     · change IsAlgebraic ℚ (Complex.exp ((Real.log (w₂ (a : F)) : ℂ) * 1))
-      rw [mul_one, cubic_exp_log_place w₂ a.ne_zero]
-      exact cubic_algebraic_place w₂ (a : F)
+      rw [mul_one, fe_exp_log_place w₂ a.ne_zero]
+      exact fe_algebraic_place w₂ (a : F)
     · change IsAlgebraic ℚ (Complex.exp ((ℓ a : ℂ) * (-(τ * N : ℝ) * Complex.I)))
       rw [haN]
       exact hζalg a
@@ -1561,11 +1565,11 @@ private theorem cubic_relation_torsion (hdeg : Module.finrank ℚ F = 3)
   rcases eq_or_ne Q 0 with hQ | hQ
   · have hP : (P : ℝ) ≠ 0 := by exact_mod_cast hPQ.resolve_right (not_not.mpr hQ)
     rw [hQ, Int.cast_zero, zero_mul, add_zero] at hrel
-    exact cubic_isOfFinOrder_of_real_place h₁ (Real.eq_one_of_pos_of_log_eq_zero hA
+    exact fe_isOfFinOrder_of_real_place h₁ (Real.eq_one_of_pos_of_log_eq_zero hA
       ((mul_eq_zero.mp hrel).resolve_left hP))
   rcases eq_or_ne P 0 with hP | hP
   · rw [hP, Int.cast_zero, zero_mul, zero_add] at hrel
-    exact cubic_isOfFinOrder_of_real_place h₂ (Real.eq_one_of_pos_of_log_eq_zero hB
+    exact fe_isOfFinOrder_of_real_place h₂ (Real.eq_one_of_pos_of_log_eq_zero hB
       ((mul_eq_zero.mp hrel).resolve_left (by exact_mod_cast hQ)))
   wlog hPpos : 0 < P generalizing P Q
   · exact this (P := -P) (Q := -Q) (Or.inl (neg_ne_zero.mpr hP))
@@ -1686,7 +1690,7 @@ private theorem cubic_relation_torsion (hdeg : Module.finrank ℚ F = 3)
     change ‖σ₁ ((δ : F) ^ 2)‖ = 1 at this
     rwa [cubic_real_embedding_sq h₁, Complex.norm_real, Real.norm_eq_abs,
       abs_of_nonneg (sq_nonneg _)] at this
-  exact cubic_isOfFinOrder_of_real_place h₁
+  exact fe_isOfFinOrder_of_real_place h₁
     ((pow_eq_one_iff_of_nonneg (AbsoluteValue.nonneg _ _) two_ne_zero).mp h1)
 
 /-- Two independent integral vectors orthogonal to a given integral vector of length
@@ -1744,7 +1748,7 @@ local notation "N∞" => MonoidHom.ker (infiniteIdeleNorm F)
 private theorem cubic_log_combination (w : InfinitePlace F) (η : Fin 3 → Fˣ) (e : Fin 3 → ℤ) :
     Real.log (w ((η 0 ^ e 0 * η 1 ^ e 1 * η 2 ^ e 2 : Fˣ) : F)) =
       ∑ k, (e k : ℝ) * Real.log (w (η k : F)) := by
-  rw [cubic_log_place_mul3_zpow, Fin.sum_univ_three]
+  rw [fe_log_place_mul3_zpow, Fin.sum_univ_three]
 
 /-- **Totally real cubic fields.** A repeated pole contradicts the Four Exponentials
 Conjecture when the exponents of the character point in an irrational direction, and
@@ -1755,13 +1759,13 @@ private theorem cubic_totallyReal_false (hFEC : FourExponentialsConjecture)
     (h12 : w₁ ≠ w₂) (h13 : w₁ ≠ w₃) (h23 : w₂ ≠ w₃)
     (hc : ∀ w : InfinitePlace F, w = w₁ ∨ w = w₂ ∨ w = w₃) (η : Fin 3 → Fˣ)
     (hind : ∀ e : Fin 3 → ℤ, IsOfFinOrder (η 0 ^ e 0 * η 1 ^ e 1 * η 2 ^ e 2) → e = 0)
-    (hχ : ∀ k, CubicTorsionDiagonal ω (η k)) : False := by
+    (hχ : ∀ k, FeTorsionDiagonal ω (η k)) : False := by
   obtain ⟨s₁, s₂, hpar⟩ := cubicArch_real_parameters ω w₁ w₂ w₃ h₁ h₂ h₃ h12 h13 h23 hc
   have hs : s₁ ≠ 0 ∨ s₂ ≠ 0 := by
     by_contra h
     push Not at h
     apply hω
-    apply cubic_finiteOrder_of_sq_trivial ω
+    apply fe_finiteOrder_of_sq_trivial ω
     intro g
     rw [hpar g, h.1, h.2]
     simp
@@ -1769,11 +1773,11 @@ private theorem cubic_totallyReal_false (hFEC : FourExponentialsConjecture)
   -- The norm relation and the torsion relation for the three elements.
   have hsum (k : Fin 3) : ∑ x : InfinitePlace F, (x.mult : ℝ) * Real.log (x (η k : F)) = 0 := by
     obtain ⟨g, hg, -⟩ := hχ k
-    exact cubic_log_sum_of_diagonal g hg
+    exact fe_log_sum_of_diagonal g hg
   have htor (k : Fin 3) : ∃ N : ℕ, 0 < N ∧ ∃ n : ℤ,
       (N : ℝ) * (s₁ * L w₁ k + s₂ * L w₂ k) = 2 * Real.pi * n := by
     obtain ⟨g, hg, ht⟩ := hχ k
-    have h := cubic_sq_isOfFinOrder ω ht
+    have h := fe_sq_isOfFinOrder ω ht
     rw [hpar g, hg w₁, hg w₂, InfinitePlace.norm_embedding_eq,
       InfinitePlace.norm_embedding_eq] at h
     obtain ⟨N, hN, he⟩ := h.exists_pow_eq_one
@@ -1812,7 +1816,7 @@ private theorem cubic_totallyReal_false (hFEC : FourExponentialsConjecture)
   -- Independence of the logarithms at `w₁`.
   have hL1 (e : Fin 3 → ℤ) (he : ∑ k, (e k : ℝ) * L w₁ k = 0) : e = 0 := by
     apply hind e
-    apply cubic_isOfFinOrder_of_real_place h₁
+    apply fe_isOfFinOrder_of_real_place h₁
     apply Real.eq_one_of_pos_of_log_eq_zero (InfinitePlace.pos_iff.mpr (Units.ne_zero _))
     rw [cubic_log_combination]
     exact he
@@ -1820,7 +1824,7 @@ private theorem cubic_totallyReal_false (hFEC : FourExponentialsConjecture)
   have hδlog (w : InfinitePlace F) (e : Fin 3 → ℤ) :
       Real.log (w (δ e : F)) = ∑ k, (e k : ℝ) * L w k := cubic_log_combination w η e
   have hδN (e : Fin 3 → ℤ) : |(Algebra.norm ℚ (δ e : F) : ℝ)| = 1 := by
-    apply cubic_abs_norm_of_log_sum (δ e).ne_zero
+    apply fe_abs_norm_of_log_sum (δ e).ne_zero
     simp_rw [hδlog, Finset.mul_sum]
     rw [Finset.sum_comm]
     simp_rw [mul_left_comm (_ : ℝ) (e _ : ℝ), ← Finset.mul_sum]
@@ -1905,8 +1909,8 @@ private theorem cubic_totallyReal_false (hFEC : FourExponentialsConjecture)
     obtain ⟨i, j, hij⟩ := hFEC x y hx hy
     have halg (e : Fin 3 → ℤ) (w : InfinitePlace F) :
         IsAlgebraic ℚ (Complex.exp ((∑ k, (e k : ℝ) * L w k : ℝ) : ℂ)) := by
-      rw [← hδlog, cubic_exp_log_place w (δ e).ne_zero]
-      exact cubic_algebraic_place w _
+      rw [← hδlog, fe_exp_log_place w (δ e).ne_zero]
+      exact fe_algebraic_place w _
     apply hij
     fin_cases i <;> fin_cases j
     · change IsAlgebraic ℚ (Complex.exp ((X c : ℂ) * 1))
@@ -1975,9 +1979,9 @@ public theorem cubic_repeatedPrimaryPole_false_of_fourExponentials
     (v w : T) (hvw : v ≠ w) (hvp : v.val ∈ sLocalPrimaryPlaces T p)
     (hwp : w.val ∈ sLocalPrimaryPlaces T p)
     (hv : v ∈ sLocalFinitePolePlaces c) (hw : w ∈ sLocalFinitePolePlaces c) : False := by
-  obtain ⟨a, ha, haχ⟩ := cubic_pole_torsion_diagonal ω hT p c hc v w hvw hvp hwp hv hw
-  have hav : cubicOrd v.val a ≠ 1 := by
-    rw [Ne, cubicOrd_eq_one]
+  obtain ⟨a, ha, haχ⟩ := fe_pole_torsion_diagonal ω hT p c hc v w hvw hvp hwp hv hw
+  have hav : feOrd v.val a ≠ 1 := by
+    rw [Ne, feOrd_eq_one]
     exact (ha v.val).mpr (by simp)
   let U : (𝓞 F)ˣ →* Fˣ := Units.map (algebraMap (𝓞 F) F).toMonoidHom
   have hU : Injective U := Units.map_injective (FaithfulSMul.algebraMap_injective (𝓞 F) F)
@@ -2004,15 +2008,15 @@ public theorem cubic_repeatedPrimaryPole_false_of_fourExponentials
     let η : Fin 3 → Fˣ := ![U u₀, U u₁, a]
     have hind (k : Fin 3 → ℤ) (hk : IsOfFinOrder (η 0 ^ k 0 * η 1 ^ k 1 * η 2 ^ k 2)) :
         k = 0 := by
-      have hU₀ : cubicOrd v.val (U u₀) = 1 := cubicOrd_unit _ _
-      have hU₁ : cubicOrd v.val (U u₁) = 1 := cubicOrd_unit _ _
-      have hord : (cubicOrd v.val a) ^ k 2 = 1 := by
-        have h1 := ((cubicOrd v.val).isOfFinOrder hk).eq_one'
+      have hU₀ : feOrd v.val (U u₀) = 1 := feOrd_unit _ _
+      have hU₁ : feOrd v.val (U u₁) = 1 := feOrd_unit _ _
+      have hord : (feOrd v.val a) ^ k 2 = 1 := by
+        have h1 := ((feOrd v.val).isOfFinOrder hk).eq_one'
         simpa only [η, Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.cons_val_two,
           Matrix.head_cons, Matrix.tail_cons, map_mul, map_zpow, hU₀, hU₁, one_zpow,
           one_mul] using h1
       have hk2 : k 2 = 0 := by
-        have he : k 2 * (cubicOrd v.val a).toAdd = 0 := congrArg Multiplicative.toAdd hord
+        have he : k 2 * (feOrd v.val a).toAdd = 0 := congrArg Multiplicative.toAdd hord
         refine (mul_eq_zero.mp he).resolve_right fun h ↦ hav ?_
         exact Multiplicative.toAdd.injective (by simpa using h)
       have hk' : IsOfFinOrder (u₀ ^ k 0 * u₁ ^ k 1) := by
@@ -2025,10 +2029,10 @@ public theorem cubic_repeatedPrimaryPole_false_of_fourExponentials
       · exact h0
       · exact h1
       · exact hk2
-    have hχ (k : Fin 3) : CubicTorsionDiagonal ω (η k) := by
+    have hχ (k : Fin 3) : FeTorsionDiagonal ω (η k) := by
       fin_cases k
-      · exact cubic_unit_torsion_diagonal ω u₀
-      · exact cubic_unit_torsion_diagonal ω u₁
+      · exact fe_unit_torsion_diagonal ω u₀
+      · exact fe_unit_torsion_diagonal ω u₁
       · exact haχ
     exact cubic_totallyReal_false hFEC hdeg ω hω (e.symm 0) (e.symm 1) (e.symm 2)
       (hreal _) (hreal _) (hreal _) (hne 0 1 (by decide)) (hne 0 2 (by decide))
@@ -2043,13 +2047,13 @@ public theorem cubic_repeatedPrimaryPole_false_of_fourExponentials
       · exact Or.inr (congrArg Subtype.val (hw₂ ⟨x, hx⟩))
     have hcard : Fintype.card (InfinitePlace F) = 2 := by
       rw [InfinitePlace.card_eq_nrRealPlaces_add_nrComplexPlaces, hr, hc1]
-    obtain ⟨u, hu⟩ := cubicArch_exists_unit F hcard
+    obtain ⟨u, hu⟩ := feArch_exists_unit F hcard
     have hε : ¬ IsOfFinOrder (U u) := by
       intro h
       apply hu
       exact (CommGroup.mem_torsion u).mpr (hU.isOfFinOrder_iff.mp h)
     exact cubic_complex_false hFEC hdeg ω hω w₁ w₂ h₁ h₂ hd hall (U u) hε
-      (fun x ↦ cubicOrd_unit x u) (cubic_unit_torsion_diagonal ω u) a v.val hav haχ
+      (fun x ↦ feOrd_unit x u) (fe_unit_torsion_diagonal ω u) a v.val hav haχ
 
 /-- Paper: Theorem 7.3.3.4, p. 360, with the coefficient change on p. 349.
 In a number field of degree three, if the Four Exponentials Conjecture holds, the primary
@@ -2071,7 +2075,632 @@ public theorem cubic_primaryPoleMultiplicity_le_one_of_fourExponentials
 
 end
 
-/-! ### The open statement of Theorem 7.3.3.4 in degree three -/
+/-! ### Primitive quartic fields: the Galois action on the four embeddings
+
+This section is dyknapp's, from `Sec3b_PrimitiveQuartic_Isolated.lean` in pull request #7479,
+copied without change: a quartic field with no proper intermediate field has a doubly transitive
+Galois action on its four embeddings, and in a totally imaginary such field an element of
+absolute value one at one embedding is `1` or `-1`, and a torsion angular relation at an element
+with unequal absolute values has trivial exponents.
+-/
+
+section
+
+open NumberField
+
+/-- The Galois group of the normal closure can move any ordered pair of distinct
+embeddings to any other. This is the two-transitivity hypothesis in the primitive
+quartic argument. -/
+def QuarticNormalClosurePairTransitive (F : Type*) [Field F] [NumberField F] : Prop :=
+  let L := IntermediateField.normalClosure ℚ F ℂ
+  ∀ f₁ f₂ g₁ g₂ : F →ₐ[ℚ] L, f₁ ≠ f₂ → g₁ ≠ g₂ →
+    ∃ e : L ≃ₐ[ℚ] L, e.toAlgHom.comp f₁ = g₁ ∧ e.toAlgHom.comp f₂ = g₂
+
+section
+
+variable {F : Type*} [Field F] [NumberField F]
+
+local notation "L" => IntermediateField.normalClosure ℚ F ℂ
+
+private noncomputable def normalClosureComplexEmbeddings : (F →ₐ[ℚ] L) ≃ (F →+* ℂ) :=
+  (normalClosure.algHomEquiv ℚ F ℂ).trans (RingHom.equivRatAlgHom F ℂ).symm
+
+private theorem normalClosureComplexEmbeddings_apply (f : F →ₐ[ℚ] L) (x : F) :
+    normalClosureComplexEmbeddings f x = (f x : ℂ) := rfl
+
+private theorem normalClosureComplexEmbeddings_symm_apply (f : F →+* ℂ) (x : F) :
+    ((normalClosureComplexEmbeddings.symm f x : L) : ℂ) = f x := by
+  rw [← normalClosureComplexEmbeddings_apply, Equiv.apply_symm_apply]
+
+private theorem quartic_pair_product_eq_one
+    (h : QuarticNormalClosurePairTransitive F) {x : F}
+    (f g : F →+* ℂ) (hfg : f ≠ g) (hprod : f x * g x = 1)
+    (f' g' : F →+* ℂ) (hfg' : f' ≠ g') :
+    f' x * g' x = 1 := by
+  let Φ := normalClosureComplexEmbeddings (F := F)
+  have h' : Φ.symm f x * Φ.symm g x = 1 := by
+    apply Subtype.ext
+    change (((Φ.symm f x : L) : ℂ) * ((Φ.symm g x : L) : ℂ)) = 1
+    simpa only [normalClosureComplexEmbeddings_symm_apply, Φ] using hprod
+  obtain ⟨e, he₁, he₂⟩ :=
+    h (Φ.symm f) (Φ.symm g) (Φ.symm f') (Φ.symm g')
+      (Φ.symm.injective.ne hfg) (Φ.symm.injective.ne hfg')
+  have he₁' : e (Φ.symm f x) = Φ.symm f' x := DFunLike.congr_fun he₁ x
+  have he₂' : e (Φ.symm g x) = Φ.symm g' x := DFunLike.congr_fun he₂ x
+  have h'' := congrArg (fun y ↦ e y) h'
+  rw [map_mul, map_one, he₁', he₂'] at h''
+  simpa only [map_mul, map_one, IntermediateField.coe_val,
+    normalClosureComplexEmbeddings_symm_apply, Φ] using
+    congrArg (fun y : L ↦ (L : IntermediateField ℚ ℂ).val y) h''
+
+/-- In a totally imaginary quartic with doubly transitive normal-closure action,
+an element of modulus one at one embedding is \(1\) or \(-1\). -/
+theorem quartic_eq_one_or_neg_one_of_norm_eq_one [IsTotallyComplex F]
+    (hdeg : Module.finrank ℚ F = 4) (h : QuarticNormalClosurePairTransitive F)
+    (f : F →+* ℂ) (x : F) (hx : ‖f x‖ = 1) : x = 1 ∨ x = -1 := by
+  let g := ComplexEmbedding.conjugate f
+  have hgf : g ≠ f :=
+    fun e ↦ (IsTotallyComplex.complexEmbedding_not_isReal f) (ComplexEmbedding.isReal_iff.mpr e)
+  have hfg : f x * g x = 1 := by
+    change f x * (starRingEnd ℂ) (f x) = 1
+    rw [Complex.mul_conj', hx]
+    norm_num
+  have hcard : Fintype.card (F →+* ℂ) = 4 := (NumberField.Embeddings.card F ℂ).trans hdeg
+  let E := Fintype.equivFinOfCardEq hcard
+  obtain ⟨j, hjf, hjg⟩ := Fin.exists_ne_and_ne_of_two_lt (E f) (E g) (by decide)
+  let k := E.symm j
+  have hkf : k ≠ f := fun eq ↦ hjf (by simp [← eq, k])
+  have hkg : k ≠ g := fun eq ↦ hjg (by simp [← eq, k])
+  have hfk := quartic_pair_product_eq_one h f g hgf.symm hfg f k hkf.symm
+  have hgk := quartic_pair_product_eq_one h f g hgf.symm hfg g k hkg.symm
+  have hfn : f x ≠ 0 := norm_ne_zero_iff.mp (by rw [hx]; exact one_ne_zero)
+  have hg_eq : g x = k x := mul_left_cancel₀ hfn (hfg.trans hfk.symm)
+  rw [← hg_eq, ← sq] at hgk
+  exact sq_eq_one_iff.mp (g.injective (by simpa only [map_pow, map_one] using hgk))
+
+
+private noncomputable def quarticMoveEmbedding (e : L ≃ₐ[ℚ] L) (f : F →+* ℂ) : F →+* ℂ :=
+  normalClosureComplexEmbeddings (e.toAlgHom.comp (normalClosureComplexEmbeddings.symm f))
+
+private theorem quarticMoveEmbedding_apply (e : L ≃ₐ[ℚ] L) (f : F →+* ℂ) (x : F) :
+    quarticMoveEmbedding e f x = (e (normalClosureComplexEmbeddings.symm f x) : ℂ) := rfl
+
+private theorem quarticMoveEmbedding_injective (e : L ≃ₐ[ℚ] L) :
+    Function.Injective (quarticMoveEmbedding (F := F) e) := by
+  intro f g h
+  apply normalClosureComplexEmbeddings.symm.injective
+  have hh := normalClosureComplexEmbeddings.injective h
+  apply AlgHom.ext
+  intro x
+  apply e.injective
+  exact DFunLike.congr_fun hh x
+
+private theorem quartic_exists_move_embedding_pair
+    (h : QuarticNormalClosurePairTransitive F)
+    {f₁ f₂ g₁ g₂ : F →+* ℂ} (hf : f₁ ≠ f₂) (hg : g₁ ≠ g₂) :
+    ∃ e : L ≃ₐ[ℚ] L, quarticMoveEmbedding e f₁ = g₁ ∧ quarticMoveEmbedding e f₂ = g₂ := by
+  let Φ := normalClosureComplexEmbeddings (F := F)
+  obtain ⟨e, he₁, he₂⟩ := h (Φ.symm f₁) (Φ.symm f₂) (Φ.symm g₁) (Φ.symm g₂)
+    (Φ.symm.injective.ne hf) (Φ.symm.injective.ne hg)
+  refine ⟨e, ?_, ?_⟩
+  · change Φ (e.toAlgHom.comp (Φ.symm f₁)) = g₁
+    rw [he₁, Equiv.apply_symm_apply]
+  · change Φ (e.toAlgHom.comp (Φ.symm f₂)) = g₂
+    rw [he₂, Equiv.apply_symm_apply]
+
+private theorem quartic_angular_relation_move (e : L ≃ₐ[ℚ] L)
+    (f f' g g' : F →+* ℂ) (x : F) (m n : ℤ) (N : ℕ)
+    (h : ((f x / f' x) ^ m * (g x / g' x) ^ n) ^ N = 1) :
+    ((quarticMoveEmbedding e f x / quarticMoveEmbedding e f' x) ^ m *
+      (quarticMoveEmbedding e g x / quarticMoveEmbedding e g' x) ^ n) ^ N = 1 := by
+  let Φ := normalClosureComplexEmbeddings (F := F)
+  have hl : ((Φ.symm f x / Φ.symm f' x) ^ m * (Φ.symm g x / Φ.symm g' x) ^ n) ^ N = 1 := by
+    apply ((L : IntermediateField ℚ ℂ).val : L →ₐ[ℚ] ℂ).injective
+    rw [map_pow, map_mul, map_zpow₀, map_zpow₀, map_div₀, map_div₀, map_one]
+    change ((((Φ.symm f x : L) : ℂ) / ((Φ.symm f' x : L) : ℂ)) ^ m *
+      (((Φ.symm g x : L) : ℂ) / ((Φ.symm g' x : L) : ℂ)) ^ n) ^ N = 1
+    simpa only [Φ, normalClosureComplexEmbeddings_symm_apply] using h
+  have hm := congrArg (fun y : L ↦ (L : IntermediateField ℚ ℂ).val (e y)) hl
+  simp only [map_pow, map_mul, map_zpow₀, map_div₀, map_one] at hm
+  exact hm
+
+private theorem quartic_zpow_pow_eq_one {r : ℝ} (hr : 0 < r) (hr' : r ≠ 1)
+    {N : ℕ} (hN : 0 < N) {k : ℤ} (h : (r ^ k) ^ N = 1) : k = 0 := by
+  rw [← zpow_natCast, ← zpow_mul, zpow_eq_one_iff_right₀ hr.le hr'] at h
+  exact (mul_eq_zero.mp h).resolve_right (by exact_mod_cast hN.ne')
+
+/-- In a primitive totally imaginary quartic, a torsion angular relation at an
+element with unequal archimedean magnitudes forces both angular exponents to vanish. -/
+theorem quartic_angular_exponents_eq_zero [IsTotallyComplex F]
+    (hdeg : Module.finrank ℚ F = 4) (h : QuarticNormalClosurePairTransitive F)
+    (f g : F →+* ℂ) (hgf : g ≠ f) (hgcf : g ≠ ComplexEmbedding.conjugate f)
+    (x : F) (hx : ‖f x‖ ≠ ‖g x‖) (m n : ℤ) {N : ℕ} (hN : 0 < N)
+    (hang : ((f x / star (f x)) ^ m * (g x / star (g x)) ^ n) ^ N = 1) :
+    m = 0 ∧ n = 0 := by
+  classical
+  let cf := ComplexEmbedding.conjugate f
+  let cg := ComplexEmbedding.conjugate g
+  have hcff : cf ≠ f := fun eq ↦ IsTotallyComplex.complexEmbedding_not_isReal f
+    (ComplexEmbedding.isReal_iff.mpr eq)
+  have hcgg : cg ≠ g := fun eq ↦ IsTotallyComplex.complexEmbedding_not_isReal g
+    (ComplexEmbedding.isReal_iff.mpr eq)
+  have hcgf : cg ≠ f := by
+    intro eq
+    exact hgcf ((ComplexEmbedding.involutive_conjugate F g).symm.trans
+      (congrArg ComplexEmbedding.conjugate eq))
+  have hcgcf : cg ≠ cf := (ComplexEmbedding.involutive_conjugate F).injective.ne hgf
+
+  have hcard : Fintype.card (F →+* ℂ) = 4 := (NumberField.Embeddings.card F ℂ).trans hdeg
+  have hSet : ({f, cf, g, cg} : Finset (F →+* ℂ)) = Finset.univ := by
+    apply (Finset.card_eq_iff_eq_univ _).mp
+    rw [hcard]
+    have hgnot : g ∉ ({cg} : Finset (F →+* ℂ)) := by simpa using hcgg.symm
+    have hcfnot : cf ∉ ({g, cg} : Finset (F →+* ℂ)) := by
+      simp only [Finset.mem_insert, Finset.mem_singleton, not_or]
+      exact ⟨hgcf.symm, hcgcf.symm⟩
+    have hfnot : f ∉ ({cf, g, cg} : Finset (F →+* ℂ)) := by
+      simp only [Finset.mem_insert, Finset.mem_singleton, not_or]
+      exact ⟨hcff.symm, hgf.symm, hcgf.symm⟩
+    rw [Finset.card_insert_of_notMem hfnot, Finset.card_insert_of_notMem hcfnot,
+      Finset.card_insert_of_notMem hgnot, Finset.card_singleton]
+  let A := ‖f x‖
+  let B := ‖g x‖
+  have hcfA : ‖cf x‖ = A := norm_star _
+  have hcgB : ‖cg x‖ = B := norm_star _
+  have hOther (j : F →+* ℂ) (hjf : j ≠ f) (hjcf : j ≠ cf) : ‖j x‖ = B := by
+    have hj : j ∈ ({f, cf, g, cg} : Finset (F →+* ℂ)) := hSet ▸ Finset.mem_univ j
+    obtain h | h : j = g ∨ j = cg := by simpa [hjf, hjcf] using hj
+    · simp [h, B]
+    · simpa [h] using hcgB
+  have hMoveOther (e : L ≃ₐ[ℚ] L) {a b c : F →+* ℂ}
+      (ha : quarticMoveEmbedding e a = f) (hb : quarticMoveEmbedding e b = cf)
+      (hca : c ≠ a) (hcb : c ≠ b) : ‖quarticMoveEmbedding e c x‖ = B :=
+    hOther _ (fun eq ↦ hca (quarticMoveEmbedding_injective e (eq.trans ha.symm)))
+      (fun eq ↦ hcb (quarticMoveEmbedding_injective e (eq.trans hb.symm)))
+  have hx0 : x ≠ 0 := fun eq ↦ hx (by simp [eq])
+  have hA : 0 < A := norm_pos_iff.mpr ((map_ne_zero f).mpr hx0)
+  have hB : 0 < B := norm_pos_iff.mpr ((map_ne_zero g).mpr hx0)
+  have hr : 0 < A / B := div_pos hA hB
+  have hr' : A / B ≠ 1 := by
+    intro eq
+    exact hx ((div_eq_iff hB.ne').mp eq |>.trans (one_mul B))
+  have hpow (e : L ≃ₐ[ℚ] L) :=
+    quartic_angular_relation_move e f cf g cg x m n N hang
+
+  obtain ⟨e₁, he₁f, he₁g⟩ := quartic_exists_move_embedding_pair h hgf.symm hcff.symm
+  have he₁cfB : ‖quarticMoveEmbedding e₁ cf x‖ = B :=
+    hMoveOther e₁ he₁f he₁g hcff hgcf.symm
+  have he₁cgB : ‖quarticMoveEmbedding e₁ cg x‖ = B :=
+    hMoveOther e₁ he₁f he₁g hcgf hcgg
+  have h₁ := congrArg (fun z : ℂ ↦ ‖z‖) (hpow e₁)
+  rw [norm_pow, norm_mul, norm_zpow, norm_zpow, norm_div, norm_div, norm_one,
+    he₁f, he₁g, he₁cfB, he₁cgB, hcfA, ← zpow_add₀ hr.ne'] at h₁
+  have hsum := quartic_zpow_pow_eq_one hr hr' hN h₁
+
+  obtain ⟨e₂, he₂f, he₂cg⟩ := quartic_exists_move_embedding_pair h hcgf.symm hcff.symm
+  have he₂cfB : ‖quarticMoveEmbedding e₂ cf x‖ = B :=
+    hMoveOther e₂ he₂f he₂cg hcff hcgcf.symm
+  have he₂gB : ‖quarticMoveEmbedding e₂ g x‖ = B :=
+    hMoveOther e₂ he₂f he₂cg hgf hcgg.symm
+  have h₂ := congrArg (fun z : ℂ ↦ ‖z‖) (hpow e₂)
+  rw [norm_pow, norm_mul, norm_zpow, norm_zpow, norm_div, norm_div, norm_one,
+    he₂f, he₂cg, he₂cfB, he₂gB, hcfA, ← inv_div A B, inv_zpow',
+    ← zpow_add₀ hr.ne'] at h₂
+  have hdiff := quartic_zpow_pow_eq_one hr hr' hN h₂
+  omega
+
+private theorem quartic_automorphism_eq_one
+    (hdeg : Module.finrank ℚ F = 4)
+    (hprimitive : ∀ K : IntermediateField ℚ F, K = ⊥ ∨ K = ⊤)
+    (e : F ≃ₐ[ℚ] F) : e = 1 := by
+  have horder (a : F ≃ₐ[ℚ] F) : orderOf a = 4 ∨ orderOf a = 1 := by
+    rw [← Nat.card_zpowers, ← IntermediateField.finrank_fixedField_eq_card]
+    rcases hprimitive (IntermediateField.fixedField (Subgroup.zpowers a)) with h | h
+    · exact Or.inl (by rw [h, IntermediateField.finrank_bot', hdeg])
+    · exact Or.inr (by rw [h, IntermediateField.finrank_top])
+  rcases horder e with he | he
+  · have he₂ : orderOf (e ^ 2) = 2 := by
+      rw [orderOf_pow_of_dvd (by decide) (by rw [he]; decide), he]
+    rcases horder (e ^ 2) with h | h <;> omega
+  · exact orderOf_eq_one_iff.mp he
+
+private theorem quartic_normalClosure_normal : Normal ℚ L :=
+  (show IsNormalClosure ℚ F L from
+    Algebra.IsAlgebraic.isNormalClosure_normalClosure (fun _ ↦ IsAlgClosed.splits _)).normal
+
+private theorem normalClosure_exists_move (f g : F →ₐ[ℚ] L) :
+    ∃ e : L ≃ₐ[ℚ] L, e.toAlgHom.comp f = g := by
+  let : Normal ℚ L := quartic_normalClosure_normal
+  let i : f.fieldRange →ₐ[ℚ] L := g.comp f.equivFieldRange.symm.toAlgHom
+  let e := AlgEquiv.ofBijective (i.liftNormal L) (AlgHom.normal_bijective ℚ L L _)
+  refine ⟨e, AlgHom.ext fun x ↦ ?_⟩
+  change i.liftNormal L (algebraMap f.fieldRange L (f.equivFieldRange x)) = g x
+  rw [i.liftNormal_commutes]
+  simp [i]
+
+private theorem normalClosure_fixes_iff (e : L ≃ₐ[ℚ] L) (f : F →ₐ[ℚ] L) :
+    e ∈ f.fieldRange.fixingSubgroup ↔ e.toAlgHom.comp f = f := by
+  rw [IntermediateField.mem_fixingSubgroup_iff]
+  constructor
+  · intro h
+    exact AlgHom.ext fun x ↦ h (f x) ⟨x, rfl⟩
+  · intro h y hy
+    obtain ⟨x, hx⟩ := AlgHom.mem_fieldRange.mp hy
+    rw [← hx]
+    exact DFunLike.congr_fun h x
+
+private theorem quartic_exists_move_of_ne
+    (hdeg : Module.finrank ℚ F = 4)
+    (hprimitive : ∀ K : IntermediateField ℚ F, K = ⊥ ∨ K = ⊤)
+    (f g : F →ₐ[ℚ] L) (hfg : g ≠ f) :
+    ∃ e : L ≃ₐ[ℚ] L, e ∈ f.fieldRange.fixingSubgroup ∧ e.toAlgHom.comp g ≠ g := by
+  classical
+  let : IsGalois ℚ L := isGalois_iff.mpr ⟨inferInstance, quartic_normalClosure_normal⟩
+  by_contra! h
+  have hle : g.fieldRange ≤ f.fieldRange := by
+    rw [← IsGalois.fixedField_fixingSubgroup f.fieldRange]
+    exact (IntermediateField.le_fixedField_iff_le_fixingSubgroup _ _).mpr
+      fun e he ↦ (normalClosure_fixes_iff e g).mpr (h e he)
+  have hEq : g.fieldRange = f.fieldRange := by
+    apply IntermediateField.eq_of_le_of_finrank_eq hle
+    exact g.equivFieldRange.toLinearEquiv.finrank_eq.symm.trans
+      f.equivFieldRange.toLinearEquiv.finrank_eq
+  let e := g.equivFieldRange.trans ((IntermediateField.equivOfEq hEq).trans f.equivFieldRange.symm)
+  have he (x : F) : f (e x) = g x := by
+    change ((f.equivFieldRange (e x) : f.fieldRange) : L) = g x
+    simp [e, IntermediateField.equivOfEq]
+    rfl
+  exact hfg (AlgHom.ext fun x ↦ by
+    simpa [quartic_automorphism_eq_one hdeg hprimitive e] using (he x).symm)
+
+private theorem quartic_normalClosure_card (hdeg : Module.finrank ℚ F = 4) :
+    Fintype.card (F →ₐ[ℚ] L) = 4 :=
+  (Fintype.card_congr normalClosureComplexEmbeddings).trans
+    ((NumberField.Embeddings.card F ℂ).trans hdeg)
+
+/-- An algebraic quartic with no proper intermediate field over \(\mathbb Q\)
+has a doubly transitive normal-closure action on its embeddings. -/
+theorem quarticNormalClosurePairTransitive_of_primitive
+    (hdeg : Module.finrank ℚ F = 4)
+    (hprimitive : ∀ K : IntermediateField ℚ F, K = ⊥ ∨ K = ⊤) :
+    QuarticNormalClosurePairTransitive F := by
+  classical
+  intro f₁ f₂ g₁ g₂ hf hg
+  obtain ⟨e₀, he₀⟩ := normalClosure_exists_move f₁ g₁
+  let a := e₀.toAlgHom.comp f₂
+  have ha : a ≠ g₁ := by
+    intro eq
+    apply hf
+    exact AlgHom.ext fun x ↦ e₀.injective (DFunLike.congr_fun (he₀.trans eq.symm) x)
+  suffices h : ∃ e : L ≃ₐ[ℚ] L, e ∈ g₁.fieldRange.fixingSubgroup ∧
+      e.toAlgHom.comp a = g₂ by
+    obtain ⟨e, hef, he⟩ := h
+    refine ⟨e₀.trans e, ?_, he⟩
+    change e.toAlgHom.comp (e₀.toAlgHom.comp f₁) = g₁
+    rw [he₀]
+    exact (normalClosure_fixes_iff e g₁).mp hef
+  by_cases hab : a = g₂
+  · exact ⟨1, Subgroup.one_mem _, hab⟩
+  obtain ⟨e₁, he₁f, he₁a⟩ := quartic_exists_move_of_ne hdeg hprimitive g₁ a ha
+  let b := e₁.toAlgHom.comp a
+  by_cases hb₂ : b = g₂
+  · exact ⟨e₁, he₁f, hb₂⟩
+  have hb₁ : b ≠ g₁ := by
+    intro eq
+    apply ha
+    exact AlgHom.ext fun x ↦ e₁.injective
+      (DFunLike.congr_fun (eq.trans ((normalClosure_fixes_iff e₁ g₁).mp he₁f).symm) x)
+  have hfour : ({g₁, g₂, a, b} : Finset (F →ₐ[ℚ] L)) = Finset.univ := by
+    apply (Finset.card_eq_iff_eq_univ _).mp
+    rw [quartic_normalClosure_card hdeg]
+    have hanot : a ∉ ({b} : Finset (F →ₐ[ℚ] L)) := by simpa using he₁a.symm
+    have h₂not : g₂ ∉ ({a, b} : Finset (F →ₐ[ℚ] L)) := by
+      simp only [Finset.mem_insert, Finset.mem_singleton, not_or]
+      exact ⟨Ne.symm hab, Ne.symm hb₂⟩
+    have h₁not : g₁ ∉ ({g₂, a, b} : Finset (F →ₐ[ℚ] L)) := by
+      simp only [Finset.mem_insert, Finset.mem_singleton, not_or]
+      exact ⟨hg, ha.symm, hb₁.symm⟩
+    rw [Finset.card_insert_of_notMem h₁not, Finset.card_insert_of_notMem h₂not,
+      Finset.card_insert_of_notMem hanot, Finset.card_singleton]
+  obtain ⟨e₂, he₂f, he₂g⟩ := quartic_exists_move_of_ne hdeg hprimitive g₁ g₂ hg.symm
+  let c := e₂.toAlgHom.comp g₂
+  have hc₁ : c ≠ g₁ := by
+    intro eq
+    apply hg.symm
+    exact AlgHom.ext fun x ↦ e₂.injective
+      (DFunLike.congr_fun (eq.trans ((normalClosure_fixes_iff e₂ g₁).mp he₂f).symm) x)
+  have hcmem : c ∈ ({g₁, g₂, a, b} : Finset (F →ₐ[ℚ] L)) := hfour ▸ Finset.mem_univ c
+  have hc : c = a ∨ c = b := by simpa [hc₁, show c ≠ g₂ from he₂g] using hcmem
+  rcases hc with hc | hc
+  · refine ⟨e₂.symm, ?_, ?_⟩
+    · exact Subgroup.inv_mem _ he₂f
+    · exact AlgHom.ext fun x ↦ by
+        change e₂.symm (a x) = g₂ x
+        rw [← DFunLike.congr_fun hc x]
+        exact e₂.symm_apply_apply _
+  · refine ⟨e₁.trans e₂.symm, Subgroup.mul_mem _ (Subgroup.inv_mem _ he₂f) he₁f, ?_⟩
+    exact AlgHom.ext fun x ↦ by
+      change e₂.symm (b x) = g₂ x
+      rw [← DFunLike.congr_fun hc x]
+      exact e₂.symm_apply_apply _
+
+end
+
+end
+
+
+/-! ### Primitive totally imaginary quartic fields -/
+
+section
+
+open NumberField InfinitePlace.Completion
+
+variable {F : Type*} [Field F] [NumberField F]
+
+local notation "Prime" => HeightOneSpectrum (𝓞 F)
+local notation "C₁" => MonoidHom.ker (ideleClassNorm F)
+local notation "N∞" => MonoidHom.ker (infiniteIdeleNorm F)
+
+private theorem quartic_two_infinite_places [IsTotallyComplex F]
+    (hdeg : Module.finrank ℚ F = 4) : Fintype.card (InfinitePlace F) = 2 := by
+  have h := IsTotallyComplex.finrank F
+  rw [InfinitePlace.card_eq_nrRealPlaces_add_nrComplexPlaces,
+    IsTotallyComplex.nrRealPlaces_eq_zero, zero_add]
+  omega
+
+/-- In a primitive totally imaginary quartic field, an element whose absolute value at one
+place is one is torsion. -/
+private theorem quartic_isOfFinOrder_of_log_eq_zero [IsTotallyComplex F]
+    (hdeg : Module.finrank ℚ F = 4) (hGalois : QuarticNormalClosurePairTransitive F)
+    (w : InfinitePlace F) (a : Fˣ) (ha : Real.log (w (a : F)) = 0) : IsOfFinOrder a := by
+  have hm : ‖w.embedding (a : F)‖ = 1 := by
+    rw [InfinitePlace.norm_embedding_eq]
+    exact Real.eq_one_of_pos_of_log_eq_zero (InfinitePlace.pos_iff.mpr a.ne_zero) ha
+  rcases quartic_eq_one_or_neg_one_of_norm_eq_one hdeg hGalois w.embedding (a : F) hm with h | h
+  · rw [show a = 1 from Units.ext h]
+    exact IsOfFinOrder.one
+  · rw [show a = -1 from Units.ext h]
+    exact isOfFinOrder_iff_pow_eq_one.mpr ⟨2, by decide, neg_one_sq⟩
+
+private theorem quartic_angular_square {z : ℂ} (hz : z ≠ 0) :
+    (z / (‖z‖ : ℂ)) ^ 2 = z / star z := by
+  rw [div_pow, ← Complex.mul_conj']
+  change z ^ 2 / (z * star z) = z / star z
+  field_simp [hz, star_ne_zero.mpr hz]
+
+private theorem quartic_angular_product_square {z w : ℂ} (hz : z ≠ 0) (hw : w ≠ 0) (m n : ℤ) :
+    ((z / (‖z‖ : ℂ)) ^ m * (w / (‖w‖ : ℂ)) ^ n) ^ 2 =
+      (z / star z) ^ m * (w / star w) ^ n := by
+  have h (ζ : ℂ) (hζ : ζ ≠ 0) (k : ℤ) :
+      ((ζ / (‖ζ‖ : ℂ)) ^ k) ^ 2 = (ζ / star ζ) ^ k := by
+    rw [← zpow_natCast, ← zpow_mul, mul_comm k, zpow_mul, zpow_natCast, quartic_angular_square hζ]
+  rw [mul_pow, h z hz m, h w hw n]
+
+/-- In a primitive totally imaginary quartic field, the radial exponent of an infinite-order
+character is not zero: otherwise the angular torsion at a nontorsion unit would force both
+angular exponents to vanish. From dyknapp's #7479. -/
+private theorem quartic_radial_ne_zero [IsTotallyComplex F]
+    (hdeg : Module.finrank ℚ F = 4) (hGalois : QuarticNormalClosurePairTransitive F)
+    (ω : PontryaginDual C₁) (hω : ¬ ∀ g : N∞, ω (feArchClass F g) = 1)
+    (u : Fˣ) (hu : ¬ IsOfFinOrder u) (hunit : FeTorsionDiagonal ω u)
+    (w₁ w₂ : InfinitePlace F) (hne : w₁ ≠ w₂)
+    (hall : ∀ w : InfinitePlace F, w = w₁ ∨ w = w₂)
+    (t : ℝ) (m₁ m₂ : ℤ)
+    (hχ : ∀ g : N∞,
+      let z₁ := extensionEmbedding w₁ (g.val.val w₁)
+      let z₂ := extensionEmbedding w₂ (g.val.val w₂)
+      (ω (feArchClass F g) : ℂ) =
+        Complex.exp ((t : ℂ) * Complex.I * (Real.log ‖z₁‖ : ℂ)) *
+          (z₁ / (‖z₁‖ : ℂ)) ^ m₁ * (z₂ / (‖z₂‖ : ℂ)) ^ m₂) : t ≠ 0 := by
+  intro ht
+  obtain ⟨g, hg, hgΩ⟩ := hunit
+  have hgLog := feArch_log F w₁ w₂ (IsTotallyComplex.isComplex w₁)
+    (IsTotallyComplex.isComplex w₂) hne hall g
+  rw [hg w₁, hg w₂] at hgLog
+  have hdiff : ‖w₁.embedding (u : F)‖ ≠ ‖w₂.embedding (u : F)‖ := by
+    intro h
+    rw [← h] at hgLog
+    apply hu
+    apply quartic_isOfFinOrder_of_log_eq_zero hdeg hGalois w₁ u
+    rw [← InfinitePlace.norm_embedding_eq w₁ (u : F)]
+    linarith
+  have hembed : w₂.embedding ≠ w₁.embedding := by
+    intro h
+    apply hne
+    simpa only [InfinitePlace.mk_embedding] using (congrArg InfinitePlace.mk h).symm
+  have hconj : w₂.embedding ≠ ComplexEmbedding.conjugate w₁.embedding := by
+    intro h
+    apply hne
+    simpa only [InfinitePlace.mk_embedding, InfinitePlace.mk_conjugate_eq] using
+      (congrArg InfinitePlace.mk h).symm
+  have hangular := Circle.coeHom.isOfFinOrder hgΩ
+  rw [show Circle.coeHom (ω (feArchClass F g)) = (ω (feArchClass F g) : ℂ) from rfl,
+    hχ g] at hangular
+  simp only [ht, Complex.ofReal_zero, zero_mul, Complex.exp_zero, one_mul] at hangular
+  rw [hg w₁, hg w₂] at hangular
+  have hang := hangular.pow (n := 2)
+  rw [quartic_angular_product_square ((map_ne_zero w₁.embedding).mpr u.ne_zero)
+    ((map_ne_zero w₂.embedding).mpr u.ne_zero)] at hang
+  obtain ⟨N, hN, hpower⟩ := hang.exists_pow_eq_one
+  obtain ⟨hm₁, hm₂⟩ := quartic_angular_exponents_eq_zero hdeg hGalois
+    w₁.embedding w₂.embedding hembed hconj (u : F) hdiff m₁ m₂ hN hpower
+  apply hω
+  intro y
+  apply Subtype.ext
+  change (ω (feArchClass F y) : ℂ) = 1
+  simpa only [ht, hm₁, hm₂, Complex.ofReal_zero, zero_mul, Complex.exp_zero, zpow_zero,
+    mul_one] using hχ y
+
+/-- If the character takes a root of unity at an algebraic point, its radial factor there is
+algebraic. From dyknapp's #7479. -/
+private theorem quartic_exp_radial_algebraic {z₁ z₂ : ℂ} (hz₁ : IsAlgebraic ℚ z₁)
+    (hz₂ : IsAlgebraic ℚ z₂) (hn₁ : z₁ ≠ 0) (hn₂ : z₂ ≠ 0) (m₁ m₂ : ℤ) (t l : ℝ)
+    (ht : IsOfFinOrder (Complex.exp ((t : ℂ) * Complex.I * (l : ℂ)) *
+      (z₁ / (‖z₁‖ : ℂ)) ^ m₁ * (z₂ / (‖z₂‖ : ℂ)) ^ m₂)) :
+    IsAlgebraic ℚ (Complex.exp ((t : ℂ) * Complex.I * (l : ℂ))) := by
+  have h₁ : IsAlgebraic ℚ ((z₁ / (‖z₁‖ : ℂ)) ^ m₁) :=
+    fe_algebraic_zpow (by
+      rw [div_eq_mul_inv]
+      exact hz₁.mul (fe_algebraic_norm hz₁).inv) m₁
+  have h₂ : IsAlgebraic ℚ ((z₂ / (‖z₂‖ : ℂ)) ^ m₂) :=
+    fe_algebraic_zpow (by
+      rw [div_eq_mul_inv]
+      exact hz₂.mul (fe_algebraic_norm hz₂).inv) m₂
+  have h₁' : (z₁ / (‖z₁‖ : ℂ)) ^ m₁ ≠ 0 := zpow_ne_zero _ (div_ne_zero hn₁
+    (Complex.ofReal_ne_zero.mpr (norm_ne_zero_iff.mpr hn₁)))
+  have h₂' : (z₂ / (‖z₂‖ : ℂ)) ^ m₂ ≠ 0 := zpow_ne_zero _ (div_ne_zero hn₂
+    (Complex.ofReal_ne_zero.mpr (norm_ne_zero_iff.mpr hn₂)))
+  have hA : IsAlgebraic ℚ (Complex.exp ((t : ℂ) * Complex.I * (l : ℂ)) *
+      (z₁ / (‖z₁‖ : ℂ)) ^ m₁ * (z₂ / (‖z₂‖ : ℂ)) ^ m₂) := by
+    obtain ⟨N, hN, he⟩ := ht.exists_pow_eq_one
+    exact IsAlgebraic.of_pow hN (he.symm ▸ isAlgebraic_one)
+  have h : IsAlgebraic ℚ ((Complex.exp ((t : ℂ) * Complex.I * (l : ℂ)) *
+      (z₁ / (‖z₁‖ : ℂ)) ^ m₁ * (z₂ / (‖z₂‖ : ℂ)) ^ m₂) /
+      (z₂ / (‖z₂‖ : ℂ)) ^ m₂ / (z₁ / (‖z₁‖ : ℂ)) ^ m₁) := by
+    simpa only [div_eq_mul_inv] using (hA.mul h₂.inv).mul h₁.inv
+  rwa [mul_div_cancel_right₀ _ h₂', mul_div_cancel_right₀ _ h₁'] at h
+
+/-- **Primitive totally imaginary quartic fields.** A nontorsion unit `ε` and an element `a`
+with nonzero valuation at some place, both with torsion diagonals, contradict the Four
+Exponentials Conjecture, applied to `x = (log|ε|₁, log|a|₁)` and `y = (1, i t)` with `t` the
+radial exponent of the character. -/
+private theorem quartic_false (hFEC : FourExponentialsConjecture) [IsTotallyComplex F]
+    (hdeg : Module.finrank ℚ F = 4) (hGalois : QuarticNormalClosurePairTransitive F)
+    (ω : PontryaginDual C₁) (hω : ¬ IsOfFinOrder ω)
+    (w₁ w₂ : InfinitePlace F) (hne : w₁ ≠ w₂) (hall : ∀ w : InfinitePlace F, w = w₁ ∨ w = w₂)
+    (ε : Fˣ) (hε : ¬ IsOfFinOrder ε) (hεv : ∀ v : Prime, feOrd v ε = 1)
+    (hεχ : FeTorsionDiagonal ω ε)
+    (a : Fˣ) (v : Prime) (hav : feOrd v a ≠ 1) (haχ : FeTorsionDiagonal ω a) : False := by
+  obtain ⟨t, m₁, m₂, hχ⟩ := feArchCharacter_parameters F ω w₁ w₂
+    (IsTotallyComplex.isComplex w₁) (IsTotallyComplex.isComplex w₂) hne hall
+  have hnArch : ¬ ∀ g, ω (feArchClass F g) = 1 := fun h ↦ hω (feArch_trivial_finiteOrder F ω h)
+  have ht := quartic_radial_ne_zero hdeg hGalois ω hnArch ε hε hεχ w₁ w₂ hne hall t m₁ m₂ hχ
+  let ℓ (η : Fˣ) : ℝ := Real.log (w₁ (η : F))
+  -- For an element with a torsion diagonal: the norm relation, and an algebraic radial factor.
+  have key (η : Fˣ) (hη : FeTorsionDiagonal ω η) :
+      (∑ x : InfinitePlace F, (x.mult : ℝ) * Real.log (x (η : F)) = 0) ∧
+      IsAlgebraic ℚ (Complex.exp ((t : ℂ) * Complex.I * (ℓ η : ℂ))) := by
+    obtain ⟨g, hg, htor⟩ := hη
+    refine ⟨fe_log_sum_of_diagonal g hg, ?_⟩
+    have h := Circle.coeHom.isOfFinOrder htor
+    change IsOfFinOrder (ω (feArchClass F g) : ℂ) at h
+    rw [hχ g, hg w₁, hg w₂] at h
+    have hℓ : ℓ η = Real.log ‖w₁.embedding (η : F)‖ := by
+      change Real.log (w₁ (η : F)) = _
+      rw [InfinitePlace.norm_embedding_eq]
+    rw [hℓ]
+    exact quartic_exp_radial_algebraic (fe_algebraic_embedding _ _) (fe_algebraic_embedding _ _)
+      ((map_ne_zero _).mpr η.ne_zero) ((map_ne_zero _).mpr η.ne_zero) m₁ m₂ t _ h
+  obtain ⟨hεs, hεt⟩ := key ε hεχ
+  obtain ⟨has, hat⟩ := key a haχ
+  have hind := fe_log_independent2 w₁
+    (fun β _ h0 ↦ quartic_isOfFinOrder_of_log_eq_zero hdeg hGalois w₁ β h0)
+    hε hεs has v (hεv v) hav
+  let x : Fin 2 → ℂ := ![(ℓ ε : ℂ), (ℓ a : ℂ)]
+  let y : Fin 2 → ℂ := ![1, (t : ℂ) * Complex.I]
+  have hxr : LinearIndependent ℚ ![ℓ ε, ℓ a] := by
+    apply (LinearIndependent.iff_fractionRing ℤ ℚ).mp
+    apply Fintype.linearIndependent_iff.mpr
+    intro e he i
+    rw [Fin.sum_univ_two] at he
+    have he' : (e 0 : ℝ) * ℓ ε + (e 1 : ℝ) * ℓ a = 0 := by
+      simpa [zsmul_eq_mul] using he
+    obtain ⟨h0, h1⟩ := hind (e 0) (e 1) he'
+    fin_cases i
+    · exact h0
+    · exact h1
+  have hx : LinearIndependent ℚ x := by
+    let f : ℝ →ₗ[ℚ] ℂ := Complex.ofRealCLM.toLinearMap.restrictScalars ℚ
+    have hf : LinearMap.ker f = ⊥ := LinearMap.ker_eq_bot.mpr Complex.ofReal_injective
+    have h := hxr.map' f hf
+    convert h using 1
+    funext i
+    fin_cases i <;> rfl
+  have hy : LinearIndependent ℚ y := by
+    rw [linearIndependent_fin2]
+    constructor
+    · exact mul_ne_zero (Complex.ofReal_ne_zero.mpr ht) Complex.I_ne_zero
+    · intro q hq
+      have h := congrArg Complex.re hq
+      simp [y, Rat.smul_def, Complex.mul_re] at h
+  obtain ⟨i, j, hij⟩ := hFEC x y hx hy
+  apply hij
+  fin_cases i <;> fin_cases j
+  · change IsAlgebraic ℚ (Complex.exp ((Real.log (w₁ (ε : F)) : ℂ) * 1))
+    rw [mul_one, fe_exp_log_place w₁ ε.ne_zero]
+    exact fe_algebraic_place w₁ (ε : F)
+  · change IsAlgebraic ℚ (Complex.exp ((ℓ ε : ℂ) * ((t : ℂ) * Complex.I)))
+    rw [show (ℓ ε : ℂ) * ((t : ℂ) * Complex.I) = (t : ℂ) * Complex.I * (ℓ ε : ℂ) by ring]
+    exact hεt
+  · change IsAlgebraic ℚ (Complex.exp ((Real.log (w₁ (a : F)) : ℂ) * 1))
+    rw [mul_one, fe_exp_log_place w₁ a.ne_zero]
+    exact fe_algebraic_place w₁ (a : F)
+  · change IsAlgebraic ℚ (Complex.exp ((ℓ a : ℂ) * ((t : ℂ) * Complex.I)))
+    rw [show (ℓ a : ℂ) * ((t : ℂ) * Complex.I) = (t : ℂ) * Complex.I * (ℓ a : ℂ) by ring]
+    exact hat
+
+/-- Paper: Theorem 7.3.3.4, p. 360, with the coefficient change on p. 349.
+In a totally imaginary quartic field with no proper intermediate field, if the Four
+Exponentials Conjecture holds, an infinite-order norm-one character has no repeated primary
+pole: no two distinct finite places above one rational prime are poles of a quasi-character on
+its component. See duuren's degree-four note on issue #7336, which gives this case; dyknapp's
+#7479 proves from the Six Exponentials Theorem that at most one such pair occurs. -/
+public theorem primitiveQuartic_repeatedPrimaryPole_false_of_fourExponentials
+    (hFEC : FourExponentialsConjecture) [IsTotallyComplex F] (hdeg : Module.finrank ℚ F = 4)
+    (hprimitive : ∀ K : IntermediateField ℚ F, K = ⊥ ∨ K = ⊤)
+    {T : Finset Prime} (ω : PontryaginDual C₁) (hω : ¬ IsOfFinOrder ω)
+    (hT : NormOneCharacterUnramifiedOutside ω T) (p : HeightOneSpectrum (𝓞 ℚ))
+    (c : QuasiCharacter (SIdeleQuotient F T))
+    (hc : ∀ x : (sIdeleQuotientNorm F T).ker, c x.val = (sLocalNormOneCharacter T ω hT x : ℂ))
+    (v w : T) (hvw : v ≠ w) (hvp : v.val ∈ sLocalPrimaryPlaces T p)
+    (hwp : w.val ∈ sLocalPrimaryPlaces T p)
+    (hv : v ∈ sLocalFinitePolePlaces c) (hw : w ∈ sLocalFinitePolePlaces c) : False := by
+  have hGalois := quarticNormalClosurePairTransitive_of_primitive hdeg hprimitive
+  obtain ⟨a, ha, haχ⟩ := fe_pole_torsion_diagonal ω hT p c hc v w hvw hvp hwp hv hw
+  have hav : feOrd v.val a ≠ 1 := by
+    rw [Ne, feOrd_eq_one]
+    exact (ha v.val).mpr (by simp)
+  let U : (𝓞 F)ˣ →* Fˣ := Units.map (algebraMap (𝓞 F) F).toMonoidHom
+  have hU : Injective U := Units.map_injective (FaithfulSMul.algebraMap_injective (𝓞 F) F)
+  have hcard := quartic_two_infinite_places (F := F) hdeg
+  let e := Fintype.equivFinOfCardEq hcard
+  let w₁ := e.symm 0
+  let w₂ := e.symm 1
+  have hne : w₁ ≠ w₂ := e.symm.injective.ne (by decide)
+  have hall (x : InfinitePlace F) : x = w₁ ∨ x = w₂ := by
+    have h : e x = 0 ∨ e x = 1 := (show ∀ j : Fin 2, j = 0 ∨ j = 1 from by decide) (e x)
+    exact h.imp (fun h ↦ e.injective (by simpa [w₁] using h))
+      (fun h ↦ e.injective (by simpa [w₂] using h))
+  obtain ⟨u, hu⟩ := feArch_exists_unit F hcard
+  have hε : ¬ IsOfFinOrder (U u) := by
+    intro h
+    apply hu
+    exact (CommGroup.mem_torsion u).mpr (hU.isOfFinOrder_iff.mp h)
+  exact quartic_false hFEC hdeg hGalois ω hω w₁ w₂ hne hall (U u) hε
+    (fun x ↦ feOrd_unit x u) (fe_unit_torsion_diagonal ω u) a v.val hav haχ
+
+/-- Paper: Theorem 7.3.3.4, p. 360, with the coefficient change on p. 349.
+In a totally imaginary quartic field with no proper intermediate field, if the Four
+Exponentials Conjecture holds, the primary finite pole multiplicity of a quasi-character on the
+component of an infinite-order norm-one character is at most one. -/
+public theorem primitiveQuartic_primaryPoleMultiplicity_le_one_of_fourExponentials
+    (hFEC : FourExponentialsConjecture) [IsTotallyComplex F] (hdeg : Module.finrank ℚ F = 4)
+    (hprimitive : ∀ K : IntermediateField ℚ F, K = ⊥ ∨ K = ⊤)
+    {T : Finset Prime} (ω : PontryaginDual C₁) (hω : ¬ IsOfFinOrder ω)
+    (hT : NormOneCharacterUnramifiedOutside ω T) (p : HeightOneSpectrum (𝓞 ℚ))
+    (c : QuasiCharacter (SIdeleQuotient F T))
+    (hc : ∀ x : (sIdeleQuotientNorm F T).ker, c x.val = (sLocalNormOneCharacter T ω hT x : ℂ)) :
+    sLocalFinitePoleMultiplicity (sLocalPrimaryPlaces T p) c ≤ 1 := by
+  by_contra! h
+  obtain ⟨v, hv, w, hw, hvw⟩ := Finset.one_lt_card.mp h
+  obtain ⟨hv, hvp⟩ := Finset.mem_filter.mp hv
+  obtain ⟨hw, hwp⟩ := Finset.mem_filter.mp hw
+  exact primitiveQuartic_repeatedPrimaryPole_false_of_fourExponentials hFEC hdeg hprimitive ω hω
+    hT p c hc v w hvw hvp hwp hv hw
+
+end
+
+/-! ### The open statement of Theorem 7.3.3.4 in the two cases -/
 
 section
 
@@ -2147,6 +2776,60 @@ public theorem cubic_shift_minima_of_fourExponentials
   have hj2 : j.val.2 ≠ 0 := hj.1
   omega
 
+
+/-- Paper: Theorem 7.3.3.4, p. 360, with the coefficient change on p. 349.
+The open statement `sLocalPWOrbital_bases_bounded_interpolation_laurent_other_prime_shift_minima`
+of `Sec3b.lean` (issue #7336), word for word, for a totally imaginary quartic field with no proper
+intermediate field, proved from the Four Exponentials Conjecture. There that conjecture excludes
+repeated primary poles (`primitiveQuartic_primaryPoleMultiplicity_le_one_of_fourExponentials`), so
+the set `A` of the statement is empty and its hypothesis that `A` has infinitely many centers
+fails. -/
+public theorem primitiveQuartic_shift_minima_of_fourExponentials
+    (hFEC : FourExponentialsConjecture) [IsTotallyComplex F] (hdeg : Module.finrank ℚ F = 4)
+    (hprimitive : ∀ K : IntermediateField ℚ F, K = ⊥ ∨ K = ⊤)
+    {S₀ : Finset V} (hST : S ⊆ T) (_hT : T = S ∪ S₀) (_hdis : Disjoint S S₀)
+    (_hsat : IsSaturatedPlaceSet (F := F) S₀) (_hPic : PicTrivial)
+    (p : Vℚ) (_hp₀ : sLocalPrimaryPlaces (F := F) T p ⊆ S₀)
+    (ω : PontryaginDual C₁) (hu : NormOneCharacterUnramifiedOutside ω S)
+    (χ : PontryaginDual J₁(T)) (_hχ : χ = descend(hST, ω, hu)) (_hinf : ¬ IsOfFinOrder ω)
+    (τ : ℝ≥0ˣ →ₜ* J(T)) (_hτ : RightInverse τ (m(T))) (v w : T)
+    (_hv : v.val ∉ sLocalPrimaryPlaces T p) (_hw : w.val ∈ sLocalPrimaryPlaces T p)
+    (u : (v.val.adicCompletion F)ˣ) (_hu : ‖u.val‖ = (v.val.asIdeal.absNorm : ℝ)⁻¹)
+    (_hind : ¬ ∃ k l : ℕ, 0 < k ∧ 0 < l ∧ v.val.asIdeal.absNorm ^ k = w.val.asIdeal.absNorm ^ l) :
+    let s (j : Iₚ(p, χ)) := (existsUnique_complexPower (j.val.1.comp τ)).exists.choose
+    let z (j : Iₚ(p, χ)) := sLocalFiniteRestriction v j.val.1 u
+    let E (j : Iₚ(p, χ)) := finiteLocalEulerFactor v.val (sLocalFiniteRestriction v j.val.1)
+    let A := {j : Iₚ(p, χ) | j.val.2 ≠ 0 ∧ w ∈ sLocalFinitePolePlaces j.val.1 ∧ 1 < ‖E j‖}
+    let H (j : Iₚ(p, χ)) := 2 + ‖s j‖
+    let R := {j ∈ A | ∀ k ∈ A, k.val.1 ≠ j.val.1 → H k ≤ H j ^ 2 → ‖1 - z j‖ < ‖1 - z k‖}
+    1 < (sLocalPrimaryPlaces (F := F) T p).card → ((fun j ↦ j.val.1) '' A).Infinite →
+    ¬ BddAbove ((fun j ↦ ‖E j‖) '' A) →
+    (¬ ∃ σ : ℂ, ∃ N : ℕ, 0 < N ∧ ∀ j ∈ A,
+      Complex.exp (N * (-(Real.log w.val.asIdeal.absNorm : ℂ) * (s j - σ))) = 1 ∧
+      z j ^ N = Complex.exp (N * (-(Real.log v.val.asIdeal.absNorm : ℂ) * (s j - σ)))) →
+    (∀ j ∈ R, ∀ k ∈ R, j.val.1 ≠ k.val.1 → H j ≤ H k → H j ^ 2 < H k ∧ ‖1 - z k‖ < ‖1 - z j‖) →
+    ((fun j ↦ j.val.1) '' R).Infinite → ¬ BddAbove ((fun j ↦ ‖1 - z j‖⁻¹) '' R) →
+    2 < Module.finrank ℚ F →
+    (¬ ∀ x : J₁(T), χ x = 1 →
+      ∃ n : ℕ, 0 < n ∧ ∃ t : (SAdeleRing F T)ˣ, (∀ σ : InfinitePlace F, t.val.1 σ = 1) ∧
+        (∀ i : T, ‖t.val.2 i‖ = 1) ∧ x.val ^ n = QuotientGroup.mk t) →
+    ∃ d : ℕ, ∃ C ≥ (0 : ℝ), ∀ j ∈ R, 1 ≤ C * (1 + ‖s j‖) ^ d * ‖1 - z j‖ := by
+  subst _hχ
+  intro s z E A H R _ hA
+  exfalso
+  apply hA
+  convert Set.finite_empty
+  apply Set.image_eq_empty.mpr
+  ext j
+  simp only [Set.mem_empty_iff_false, iff_false]
+  intro hj
+  have hmult := primitiveQuartic_primaryPoleMultiplicity_le_one_of_fourExponentials hFEC hdeg
+    hprimitive ω _hinf
+    (NormOneCharacterUnramifiedOutside.mono hu hST) p j.val.1
+    (fun x ↦ by have h := DFunLike.congr_fun j.property.1 x; exact h)
+  have hlt := j.property.2
+  have hj2 : j.val.2 ≠ 0 := hj.1
+  omega
 end
 
 end RiemannMasullo.Isolated
